@@ -268,7 +268,78 @@ class QuestManager {
 
 document.addEventListener('DOMContentLoaded', () => {
     window.questApp = new QuestManager();
+    setupModelTuner();
 });
+
+// ===== DEV: live tweak the AR model with keyboard =====
+// Keys:
+//   + / -          scale up / down
+//   Arrow keys     move on marker plane (X / Y)
+//   PageUp / Down  move along Z (toward / away from camera)
+//   Q / E          rotate around Y (turn)
+//   W / S          rotate around X (tilt)
+//   R              reset
+//   H              show / hide HUD
+function setupModelTuner() {
+    const model = document.getElementById('ar-model');
+    if (!model) return;
+
+    const hud = document.createElement('div');
+    hud.id = 'model-tuner-hud';
+    hud.style.cssText = 'position:fixed;top:8px;left:8px;z-index:9999;background:rgba(0,0,0,0.7);color:#0f0;font:12px/1.3 monospace;padding:8px 10px;border-radius:6px;pointer-events:none;white-space:pre;';
+    document.body.appendChild(hud);
+
+    const state = {
+        pos: { x: 0, y: 0, z: 0.1 },
+        rot: { x: 0, y: 0, z: 0 },
+        scale: 0.05
+    };
+
+    const STEP_POS = 0.05;
+    const STEP_ROT = 5;
+    const SCALE_MUL = 1.15;
+
+    function apply() {
+        model.setAttribute('position', `${state.pos.x.toFixed(3)} ${state.pos.y.toFixed(3)} ${state.pos.z.toFixed(3)}`);
+        model.setAttribute('rotation', `${state.rot.x} ${state.rot.y} ${state.rot.z}`);
+        model.setAttribute('scale', `${state.scale.toFixed(4)} ${state.scale.toFixed(4)} ${state.scale.toFixed(4)}`);
+        hud.textContent =
+            `pos:   ${state.pos.x.toFixed(2)} ${state.pos.y.toFixed(2)} ${state.pos.z.toFixed(2)}\n` +
+            `rot:   ${state.rot.x} ${state.rot.y} ${state.rot.z}\n` +
+            `scale: ${state.scale.toFixed(4)}\n` +
+            `\n+/- scale  arrows X/Y\nPgUp/PgDn Z  Q/E yaw  W/S pitch\nR reset  H hide`;
+    }
+
+    document.addEventListener('keydown', (e) => {
+        switch (e.key) {
+            case '+': case '=': state.scale *= SCALE_MUL; break;
+            case '-': case '_': state.scale /= SCALE_MUL; break;
+            case 'ArrowLeft':  state.pos.x -= STEP_POS; break;
+            case 'ArrowRight': state.pos.x += STEP_POS; break;
+            case 'ArrowUp':    state.pos.y += STEP_POS; break;
+            case 'ArrowDown':  state.pos.y -= STEP_POS; break;
+            case 'PageUp':     state.pos.z += STEP_POS; break;
+            case 'PageDown':   state.pos.z -= STEP_POS; break;
+            case 'q': case 'Q': state.rot.y -= STEP_ROT; break;
+            case 'e': case 'E': state.rot.y += STEP_ROT; break;
+            case 'w': case 'W': state.rot.x -= STEP_ROT; break;
+            case 's': case 'S': state.rot.x += STEP_ROT; break;
+            case 'r': case 'R':
+                state.pos = { x: 0, y: 0, z: 0.1 };
+                state.rot = { x: 0, y: 0, z: 0 };
+                state.scale = 0.05;
+                break;
+            case 'h': case 'H':
+                hud.style.display = hud.style.display === 'none' ? 'block' : 'none';
+                return;
+            default: return;
+        }
+        e.preventDefault();
+        apply();
+    });
+
+    apply();
+}
 
 window.onerror = function(msg, url, lineNo, columnNo, error) {
     alert("JS Error: " + msg + " line: " + lineNo);
