@@ -1,22 +1,6 @@
 // СТИ AR Quest — model-viewer edition (no marker tracking, native ARKit/ARCore)
 const QUEST_STATE_KEY = 'sti_quest_progress';
 
-<<<<<<< HEAD
-// ---- Content: marker → character + dialog tree ----
-// Add per-marker `modelUrl` to swap glb per character.
-const DEMO_MODEL = "https://modelviewer.dev/shared-assets/models/RobotExpressive.glb";
-const DEMO_MODEL_IOS = "https://modelviewer.dev/shared-assets/models/RobotExpressive.usdz";
-
-const questData = {
-    marker1: {
-        id: 1,
-        character: "Антон Чехов",
-        modelUrl: DEMO_MODEL,         // TODO: заменить на chekhov.glb
-        modelUrlIos: DEMO_MODEL_IOS,  // TODO: заменить на chekhov.usdz
-        idleAnim: "Idle",
-        talkAnim: "Wave",
-        dialogue: "Добро пожаловать в наш дворик. Вы готовы начать путешествие? Я приготовил для вас нечто особенное.",
-=======
 // Какой сцене соответствует какой targetIndex в .mind файле.
 // В компилере MindAR картинки нумеруются по порядку добавления.
 const TARGET_INDEX_TO_MARKER = {
@@ -90,7 +74,6 @@ const questData = {
     marker1: {
         id: 1,
         character: "Маргарита",
->>>>>>> rodion
         audioUrl: "/mock-audio-1.mp3",
         requiredPrevious: null,
         startNode: "start",
@@ -164,16 +147,7 @@ const questData = {
     },
     marker2: {
         id: 2,
-<<<<<<< HEAD
-        character: "Всеволод Мейерхольд",
-        modelUrl: DEMO_MODEL,         // TODO: заменить на meyerhold.glb
-        modelUrlIos: DEMO_MODEL_IOS,  // TODO: заменить на meyerhold.usdz
-        idleAnim: "Idle",
-        talkAnim: "Yes",
-        dialogue: "Вы нашли вторую точку! Форма — это всё, не так ли? Как вам наша архитектура?",
-=======
         character: "Кот Бегемот",
->>>>>>> rodion
         audioUrl: "/mock-audio-2.mp3",
         requiredPrevious: 1,
         startNode: "start",
@@ -257,48 +231,20 @@ class QuestManager {
             model: document.getElementById('ar-model')
         };
 
-<<<<<<< HEAD
-        // Which marker did the QR redirect us to?
-        const m = new URLSearchParams(window.location.search).get('m');
-        this.initialMarker = URL_TO_MARKER[m] || 'marker1';
-
-=======
->>>>>>> rodion
         this.init();
     }
 
     init() {
-<<<<<<< HEAD
-        console.log("Quest Manager init. Progress:", this.progress, "initial marker:", this.initialMarker);
-=======
         console.log("Quest Manager Initialized. Progress:", this.progress);
 
         this.bindModelEvents();
-        
+
         // Setup Start button
->>>>>>> rodion
         this.ui.startBtn.onclick = () => this.startApp();
         this.renderDevControls();
         this.attachModelDiagnostics();
     }
 
-<<<<<<< HEAD
-    attachModelDiagnostics() {
-        const mv = this.ui.model;
-        mv.addEventListener('load', () => {
-            console.log('[model-viewer] модель загружена:', mv.getAttribute('src'));
-        });
-        mv.addEventListener('error', (e) => {
-            const detail = e.detail || {};
-            const msg = detail.sourceError?.message || detail.type || 'неизвестная ошибка';
-            console.error('[model-viewer] ошибка модели:', detail);
-            this.showToast(`Не удалось загрузить 3D: ${msg}`, true);
-        });
-        mv.addEventListener('ar-status', (e) => {
-            console.log('[model-viewer] AR status:', e.detail.status);
-            if (e.detail.status === 'failed') {
-                this.showToast('AR не запустился. Нужен HTTPS и устройство с ARKit/ARCore.', true);
-=======
     bindModelEvents() {
         // Слушаем загрузку/ошибки на всех gltf-моделях внутри обоих таргетов
         document.querySelectorAll('a-gltf-model').forEach(el => {
@@ -344,13 +290,12 @@ class QuestManager {
                 startAR();
             } else {
                 this.ui.arScene.addEventListener('loaded', startAR);
->>>>>>> rodion
             }
             if (e.detail.status === 'not-presenting') {
                 console.log('[model-viewer] AR сессия закрыта');
             }
-        });
-    }
+        }
+    };
 
     startApp() {
         // Hide intro
@@ -376,18 +321,6 @@ class QuestManager {
         }
     }
 
-<<<<<<< HEAD
-    playAnimation(name) {
-        // model-viewer auto-picks the first animation if none specified.
-        // Setting animation-name switches between clips, e.g. 'idle' / 'talk'.
-        if (!name) return;
-        try {
-            this.ui.model.setAttribute('animation-name', name);
-            // restart the clip
-            this.ui.model.currentTime = 0;
-        } catch (e) {
-            console.warn("Animation switch failed:", e);
-=======
     // Досылаем настройки которые можно применить только после открытия потока
     async tuneActiveCamera() {
         const videos = document.querySelectorAll('video');
@@ -462,7 +395,6 @@ class QuestManager {
             el.addEventListener('targetLost', () => {
                 console.log(`[AR] targetIndex ${idx} lost`);
             });
->>>>>>> rodion
         }
     }
 
@@ -499,30 +431,15 @@ class QuestManager {
     }
 
     startScene(scene) {
-<<<<<<< HEAD
-        console.log(`[SCENE] ${scene.character}, model=${scene.modelUrl}`);
-        this.currentScene = scene;
-        this.setModel(scene.modelUrl, scene.modelUrlIos);
-        this.playAnimation(scene.idleAnim);
-        // TODO: hook real audio when files are ready
-        // new Audio(scene.audioUrl).play().catch(()=>{});
-
-=======
         console.log(`[SCENE] ${scene.character} (marker ${scene.id})`);
         console.log(`[AR MOCK] Play Animation: idle`);
         console.log(`[AUDIO MOCK] Play: ${scene.audioUrl}`);
 
         this.currentScene = scene;
->>>>>>> rodion
         this.ui.overlay.style.display = 'flex';
         this.ui.characterName.textContent = scene.character;
-<<<<<<< HEAD
-        this.ui.dialogueText.textContent = scene.dialogue;
-        this.renderOptions(scene.options, scene);
-=======
 
         this.showNode(scene.startNode || 'start');
->>>>>>> rodion
     }
 
     showNode(nodeId) {
@@ -670,25 +587,6 @@ class QuestManager {
         });
     }
 
-<<<<<<< HEAD
-    handleOptionClick(option, scene) {
-        console.log(`[USER] ${option.text} → ${option.nextAction}`);
-        this.playAnimation(scene.talkAnim);
-
-        if (!this.progress.completed.includes(scene.id)) {
-            this.progress.completed.push(scene.id);
-            this.saveProgress();
-        }
-
-        if (option.nextAction === 'show_promo') {
-            this.showFinalScreen();
-        } else if (option.nextAction === 'explain_rules') {
-            this.ui.dialogueText.textContent = "Правила просты: ищите маркеры, слушайте нас, делайте выбор.";
-            this.renderOptions([{ text: "Понятно!", nextAction: "talk_next" }], scene);
-        } else {
-            // After a beat, return to idle and close UI
-            setTimeout(() => this.playAnimation(scene.idleAnim), 1200);
-=======
     handleOption(option) {
         console.log(`[USER] "${option.text}" → ${option.next || option.action}`);
         console.log(`[AR MOCK] Play Animation: talk`);
@@ -700,7 +598,6 @@ class QuestManager {
         }
         if (option.action === 'complete') {
             this.markSceneCompleted();
->>>>>>> rodion
             this.hideUI();
             this.showToast('Отлично! Ищите следующую точку.');
             return;
@@ -774,7 +671,7 @@ document.addEventListener('DOMContentLoaded', () => {
     window.questApp = new QuestManager();
 });
 
-window.onerror = function(msg, url, lineNo) {
+window.onerror = function (msg, url, lineNo) {
     console.error("JS Error:", msg, "line:", lineNo);
     return false;
 };
