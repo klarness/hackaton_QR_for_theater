@@ -1,6 +1,65 @@
 // Mocking AR interactions and endpoints for the MVP
 const QUEST_STATE_KEY = 'sti_quest_progress';
 
+// ============================================================
+// Принудительный апгрейд камеры для MindAR.
+// MindAR не пробрасывает constraints через A-Frame атрибуты,
+// поэтому перехватываем getUserMedia и подменяем настройки до того,
+// как MindAR его дернёт. Эффект: дистанция распознавания маркера
+// вырастает в 2-3 раза за счёт высокого разрешения + автофокуса.
+// ============================================================
+(function patchGetUserMediaForAR() {
+    if (!navigator.mediaDevices?.getUserMedia) return;
+    const original = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
+
+    navigator.mediaDevices.getUserMedia = function (constraints) {
+        if (!constraints?.video) {
+            return original(constraints);
+        }
+
+        const userVideo = typeof constraints.video === 'object' ? constraints.video : {};
+        const advanced = [
+            ...(userVideo.advanced || []),
+            { focusMode: 'continuous' },
+            { exposureMode: 'continuous' },
+            { whiteBalanceMode: 'continuous' }
+        ];
+
+        const upgraded = {
+            ...constraints,
+            video: {
+                ...userVideo,
+                facingMode: userVideo.facingMode || { ideal: 'environment' },
+                width: { ideal: 1920 },
+                height: { ideal: 1080 },
+                frameRate: { ideal: 30 },
+                advanced
+            }
+        };
+
+        console.log('[camera] override constraints →', upgraded.video);
+
+        return original(upgraded)
+            .catch(err => {
+                // Если 1920x1080 не вытягивает — фолбэк на 1280x720
+                console.warn('[camera] HD не дали, фолбэк на 720p:', err.name);
+                upgraded.video.width = { ideal: 1280 };
+                upgraded.video.height = { ideal: 720 };
+                return original(upgraded);
+            })
+            .then(stream => {
+                const track = stream.getVideoTracks()[0];
+                if (track) {
+                    const caps = track.getCapabilities?.() || {};
+                    const settings = track.getSettings?.() || {};
+                    console.log('[camera] capabilities:', caps);
+                    console.log('[camera] actual settings:', settings);
+                }
+                return stream;
+            });
+    };
+})();
+
 // Mock dialog tree and flow
 const questData = {
     marker1: {
@@ -67,7 +126,10 @@ class QuestManager {
                     this.ui.arScene.systems["mindar-image-system"].start();
                     this.bindAREvents();
                     this.renderDevControls();
-                    
+
+                    // Доп. подкрутка камеры после того как MindAR её открыл
+                    setTimeout(() => this.tuneActiveCamera(), 1000);
+
                     if (this.progress.completed.length === 0) {
                         this.showToast("Наведите камеру на банковскую карту (маркер).");
                     } else {
@@ -86,6 +148,60 @@ class QuestManager {
 
         } catch (err) {
             alert("General Error: " + err.message);
+        }
+    }
+
+    // Досылаем настройки которые можно применить только после открытия потока
+    async tuneActiveCamera() {
+        const videos = document.querySelectorAll('video');
+        let track = null;
+        for (const v of videos) {
+            if (v.srcObject?.getVideoTracks) {
+                const t = v.srcObject.getVideoTracks()[0];
+                if (t && t.readyState === 'live') { track = t; break; }
+            }
+        }
+        if (!track) {
+            console.warn('[camera] активный video-трек не найден');
+            return;
+        }
+
+        const caps = track.getCapabilities?.() || {};
+        const settings = track.getSettings?.() || {};
+        console.log('[camera] post-start caps:', caps, 'settings:', settings);
+
+        const advanced = [];
+
+        // Непрерывный автофокус — главный буст для распознавания
+        if (caps.focusMode?.includes('continuous')) {
+            advanced.push({ focusMode: 'continuous' });
+        }
+        if (caps.exposureMode?.includes('continuous')) {
+            advanced.push({ exposureMode: 'continuous' });
+        }
+        if (caps.whiteBalanceMode?.includes('continuous')) {
+            advanced.push({ whiteBalanceMode: 'continuous' });
+        }
+
+        // Мягкий цифровой зум 1.5x — увеличивает «угловой размер» маркера
+        // в кадре, MindAR проще ловит фичи. Только если девайс умеет.
+        if (caps.zoom) {
+            const targetZoom = Math.min(1.5, caps.zoom.max);
+            if (targetZoom > (caps.zoom.min || 1)) {
+                advanced.push({ zoom: targetZoom });
+            }
+        }
+
+        if (advanced.length === 0) {
+            console.log('[camera] нечего подкручивать (девайс не поддерживает)');
+            return;
+        }
+
+        try {
+            await track.applyConstraints({ advanced });
+            console.log('[camera] подкручено:', advanced);
+        } catch (e) {
+            console.warn('[camera] applyConstraints не сработал:', e);
         }
     }
 
