@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>СТИ: AR Квест</title>
+    <meta name="description" content="Геймифицированный WebAR-квест во внутреннем дворике Студии театрального искусства.">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <!-- Dev controls to mock marker scanning (will be removed in prod) -->
+    <div class="dev-controls" id="dev-controls">
+        <!-- Buttons injected by JS -->
+    </div>
+
+    <!-- Video element for real camera feed -->
+    <div class="camera-container" id="camera-container">
+        <video id="camera-feed" autoplay playsinline muted></video>
+    </div>
+
+    <!-- Tracking hint for the user -->
+    <div class="tracking-hint" id="tracking-hint">
+        <span class="icon">🎯</span> Держите камеру на маркере
+    </div>
+
+    <!-- Intro overlay to request camera permissions -->
+    <div class="intro-overlay" id="intro-overlay">
+        <h2>СТИ: AR Квест</h2>
+        <p>Для прохождения квеста необходим доступ к камере вашего устройства.</p>
+        <button id="start-btn" class="btn-primary">Разрешить доступ и начать</button>
+    </div>
+
+    <!-- UI Overlay that sits on top of AR -->
+    <div class="ui-overlay" id="ui-overlay">
+        <div class="dialogue-box" id="dialogue-box">
+            <div class="character-name" id="character-name">Персонаж</div>
+            <div class="dialogue-text" id="dialogue-text">Текст диалога...</div>
+        </div>
+        <div class="options-container" id="options-container">
+            <!-- Buttons injected by JS -->
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
