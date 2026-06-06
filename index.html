@@ -36,11 +36,15 @@
         <a-camera position="0 0 0" look-controls="enabled: false" cursor="fuse: false; rayOrigin: mouse;"
             raycaster="far: 10000; objects: .clickable"></a-camera>
 
-        <!-- Our Target (Bank Card) -->
-        <a-entity id="target" mindar-image-target="targetIndex: 0">
-            <!-- The 3D Model attached to the target -->
-            <!-- Стартовая модель — Маргарита. В рантайме applySceneModel() подменяет src на нужный (Маргарита/куб). -->
-            <a-gltf-model id="character-model" src="#margaritaModel" position="0 0 0" scale="1 1 1" rotation="90 0 0"
+        <!-- Marker 0 (в .mind файле): Маргарита -->
+        <a-entity id="target-margarita" mindar-image-target="targetIndex: 0">
+            <a-gltf-model src="#margaritaModel" position="0 0 0" scale="1 1 1" rotation="90 0 0"
+                animation-mixer="clip: *; loop: repeat"></a-gltf-model>
+        </a-entity>
+
+        <!-- Marker 1 (в .mind файле): Кот Бегемот (пока куб-заглушка) -->
+        <a-entity id="target-behemoth" mindar-image-target="targetIndex: 1">
+            <a-gltf-model src="#behemothModel" position="0 0 0" scale="0.3 0.3 0.3" rotation="0 0 0"
                 animation-mixer="clip: *; loop: repeat"></a-gltf-model>
         </a-entity>
     </a-scene>
