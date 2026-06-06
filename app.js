@@ -64,25 +64,63 @@ const QUEST_STATE_KEY = 'sti_quest_progress';
 const questData = {
     marker1: {
         id: 1,
+        markerId: "marker1",
         character: "Антон Чехов",
-        dialogue: "Добро пожаловать в наш дворик. Вы готовы начать путешествие? Я приготовил для вас нечто особенное.",
         audioUrl: "/mock-audio-1.mp3",
-        options: [
-            { text: "Да, готов!", nextAction: "talk_next" },
-            { text: "Что мне нужно делать?", nextAction: "explain_rules" }
-        ],
-        requiredPrevious: null
+        requiredPrevious: null,
+        startNode: "intro",
+        nodes: {
+            intro: {
+                dialogue: "Добро пожаловать в наш дворик. Вы готовы начать путешествие? Я приготовил для вас нечто особенное.",
+                options: [
+                    { text: "Да, готов!", nextNodeId: "ready" },
+                    { text: "Что мне нужно делать?", nextNodeId: "rules" }
+                ]
+            },
+            rules: {
+                dialogue: "Правила просты: ищите маркеры, слушайте нас и делайте выбор. Каждая встреча открывает следующую.",
+                options: [
+                    { text: "Понятно!", nextNodeId: "ready" }
+                ]
+            },
+            ready: {
+                dialogue: "Тогда начнем. Найдите следующего персонажа и узнайте, что он для вас приготовил.",
+                completeMarker: true,
+                options: [
+                    { text: "Иду дальше", closeScene: true, toast: "Отлично! Ищите следующую точку." }
+                ]
+            }
+        }
     },
     marker2: {
         id: 2,
-        character: "Всеволод Мейерхольд",
-        dialogue: "Вы нашли вторую точку! Форма — это всё, не так ли? Как вам наша архитектура?",
+        markerId: "marker2",
+        character: "Бегемот",
         audioUrl: "/mock-audio-2.mp3",
-        options: [
-            { text: "Впечатляет", nextAction: "show_promo" },
-            { text: "Иду дальше", nextAction: "show_promo" }
-        ],
-        requiredPrevious: 1
+        requiredPrevious: 1,
+        startNode: "intro",
+        nodes: {
+            intro: {
+                dialogue: "Ну что, дошли и до меня. Я Бегемот, и просто так дальше не пропускаю. Готовы продолжать игру?",
+                options: [
+                    { text: "Готов", nextNodeId: "reflection" },
+                    { text: "Сначала подсказку", nextNodeId: "details" }
+                ]
+            },
+            details: {
+                dialogue: "Подсказка проста: в этом квесте внимательность важнее скорости. Смотрите по сторонам и не пропускайте детали.",
+                options: [
+                    { text: "Теперь понял", nextNodeId: "reflection" }
+                ]
+            },
+            reflection: {
+                dialogue: "Тогда вы готовы к финалу. Забирайте награду за прохождение квеста.",
+                completeMarker: true,
+                options: [
+                    { text: "Получить промокод", showPromo: true }
+                ]
+            }
+        }
     }
 };
 
@@ -100,7 +138,7 @@ class QuestManager {
             startBtn: document.getElementById('start-btn'),
             trackingHint: document.getElementById('tracking-hint'),
             arScene: document.getElementById('ar-scene'),
-            characterModel: document.getElementById('character-model')
+            characterModels: document.querySelectorAll('.character-model')
         };
         
         this.init();
@@ -110,21 +148,24 @@ class QuestManager {
         console.log("Quest Manager Initialized. Progress:", this.progress);
 
         this.bindModelEvents();
+        this.bindAREvents();
         
         // Setup Start button
         this.ui.startBtn.onclick = () => this.startApp();
     }
 
     bindModelEvents() {
-        if (!this.ui.characterModel) return;
+        if (!this.ui.characterModels.length) return;
 
-        this.ui.characterModel.addEventListener('model-loaded', event => {
-            console.log('[model] loaded:', event.detail?.format, this.ui.characterModel.getObject3D('mesh'));
-        });
+        this.ui.characterModels.forEach(modelEl => {
+            modelEl.addEventListener('model-loaded', event => {
+                console.log('[model] loaded:', event.detail?.format, modelEl.getObject3D('mesh'));
+            });
 
-        this.ui.characterModel.addEventListener('model-error', event => {
-            console.error('[model] error:', event.detail);
-            this.showToast('Ошибка загрузки 3D-модели. Смотрите консоль браузера.', true);
+            modelEl.addEventListener('model-error', event => {
+                console.error('[model] error:', event.detail);
+                this.showToast('Ошибка загрузки 3D-модели. Смотрите консоль браузера.', true);
+            });
         });
     }
 
@@ -140,7 +181,6 @@ class QuestManager {
             const startAR = () => {
                 try {
                     this.ui.arScene.systems["mindar-image-system"].start();
-                    this.bindAREvents();
                     this.renderDevControls();
 
                     // Доп. подкрутка камеры после того как MindAR её открыл
@@ -222,25 +262,37 @@ class QuestManager {
     }
 
     bindAREvents() {
-        const targetEl = document.querySelector('#target');
-        
-        targetEl.addEventListener("targetFound", event => {
-            console.log("Target found!");
-            // Automatically trigger marker 1 for testing purposes
-            if (!this.progress.currentMarker) {
-                this.scanMarker('marker1');
-            }
-        });
+        const targets = document.querySelectorAll('[mindar-image-target]');
 
-        targetEl.addEventListener("targetLost", event => {
-            console.log("Target lost!");
-            this.showToast("Цель потеряна, наведите камеру обратно", true);
+        targets.forEach(targetEl => {
+            const markerId = targetEl.dataset.markerId;
+            if (!markerId) return;
+
+            targetEl.addEventListener("targetFound", () => {
+                console.log(`[AR] Target found for ${markerId}`);
+                if (this.progress.currentMarker === questData[markerId]?.id && this.ui.overlay.style.display === 'flex') {
+                    return;
+                }
+                this.scanMarker(markerId);
+            });
+
+            targetEl.addEventListener("targetLost", () => {
+                console.log(`[AR] Target lost for ${markerId}`);
+                this.showToast("Цель потеряна, наведите камеру обратно", true);
+            });
         });
     }
 
     loadProgress() {
         const data = localStorage.getItem(QUEST_STATE_KEY);
-        return data ? JSON.parse(data) : { currentMarker: null, completed: [] };
+        if (!data) return { currentMarker: null, currentNode: null, completed: [] };
+
+        const parsed = JSON.parse(data);
+        return {
+            currentMarker: parsed.currentMarker || null,
+            currentNode: parsed.currentNode || null,
+            completed: Array.isArray(parsed.completed) ? parsed.completed : []
+        };
     }
 
     saveProgress() {
@@ -249,7 +301,7 @@ class QuestManager {
 
     resetProgress() {
         localStorage.removeItem(QUEST_STATE_KEY);
-        this.progress = { currentMarker: null, completed: [] };
+        this.progress = { currentMarker: null, currentNode: null, completed: [] };
         this.hideUI();
         this.showToast("Прогресс сброшен. Можно начать заново.");
     }
@@ -272,6 +324,7 @@ class QuestManager {
 
         // Proceed to show AR scene
         this.progress.currentMarker = scene.id;
+        this.progress.currentNode = scene.startNode;
         this.saveProgress();
         this.startScene(scene);
     }
@@ -285,51 +338,71 @@ class QuestManager {
         this.ui.overlay.style.display = 'flex';
         this.ui.trackingHint.style.display = 'flex';
         this.ui.characterName.textContent = scene.character;
-        
-        // Setup dialogue text
-        this.ui.dialogueText.textContent = scene.dialogue;
-        
-        this.renderOptions(scene.options, scene);
+
+        this.renderNode(scene, scene.startNode);
     }
 
-    renderOptions(options, scene) {
+    renderNode(scene, nodeId) {
+        const node = scene.nodes[nodeId];
+        if (!node) {
+            console.error('[dialogue] unknown node:', scene.markerId, nodeId);
+            this.showToast('Ошибка диалога. Узел не найден.', true);
+            return;
+        }
+
+        this.progress.currentNode = nodeId;
+        this.saveProgress();
+        this.ui.dialogueText.textContent = node.dialogue;
+        this.renderOptions(node.options || [], scene, node);
+    }
+
+    renderOptions(options, scene, node) {
         this.ui.optionsContainer.innerHTML = '';
         
         options.forEach(opt => {
             const btn = document.createElement('button');
             btn.className = 'btn-primary';
             btn.textContent = opt.text;
-            btn.onclick = () => this.handleOptionClick(opt, scene);
+            btn.onclick = () => this.handleOptionClick(opt, scene, node);
             this.ui.optionsContainer.appendChild(btn);
         });
     }
 
-    handleOptionClick(option, scene) {
-        console.log(`[USER ACTION] Chose: ${option.text} -> Triggering: ${option.nextAction}`);
+    handleOptionClick(option, scene, node) {
+        console.log(`[USER ACTION] Chose: ${option.text}`);
         
         // Mock changing 3D animation
         console.log(`[AR MOCK] Play Animation: talk`);
 
-        // Mark current scene as completed
-        if (!this.progress.completed.includes(scene.id)) {
+        if (node.completeMarker && !this.progress.completed.includes(scene.id)) {
             this.progress.completed.push(scene.id);
             this.saveProgress();
         }
 
-        // Handle routing based on option action
-        if (option.nextAction === 'show_promo') {
+        if (option.showPromo) {
             this.showFinalScreen();
-        } else if (option.nextAction === 'explain_rules') {
-            this.ui.dialogueText.textContent = "Правила просты: ищите маркеры, слушайте нас, делайте выбор.";
-            this.renderOptions([{ text: "Понятно!", nextAction: "talk_next" }], scene);
-        } else {
-            // Advance the interaction or close
+            return;
+        }
+
+        if (option.nextNodeId) {
+            this.renderNode(scene, option.nextNodeId);
+            return;
+        }
+
+        if (option.closeScene) {
             this.hideUI();
-            this.showToast("Отлично! Ищите следующую точку.");
+            this.progress.currentMarker = null;
+            this.progress.currentNode = null;
+            this.saveProgress();
+            this.showToast(option.toast || "Отлично! Ищите следующую точку.");
         }
     }
 
     showFinalScreen() {
+        this.progress.currentMarker = null;
+        this.progress.currentNode = null;
+        this.saveProgress();
+
         this.ui.characterName.textContent = "Квест пройден!";
         this.ui.dialogueText.textContent = "Поздравляем! Вы прошли квест. Ваш промокод на скидку: ZUMER_STI_2024.";
         this.ui.optionsContainer.innerHTML = '';
@@ -382,6 +455,8 @@ class QuestManager {
 
     // Dev utility to trigger markers without actual AR
     renderDevControls() {
+        this.ui.devControls.innerHTML = '';
+
         Object.keys(questData).forEach(key => {
             const btn = document.createElement('button');
             btn.textContent = `[Dev] Скан ${key}`;

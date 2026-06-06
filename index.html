@@ -23,21 +23,27 @@
 
     <!-- Real AR Scene (MindAR + A-Frame) -->
     <a-scene id="ar-scene"
-        mindar-image="imageTargetSrc: ./21lab2.mind; autoStart: false; filterMinCF: 0.001; filterBeta: 100000;"
+        mindar-image="imageTargetSrc: ./targets.mind; autoStart: false; filterMinCF: 0.001; filterBeta: 100000;"
         color-space="sRGB" renderer="colorManagement: true, physicallyCorrectLights" vr-mode-ui="enabled: false"
         device-orientation-permission-ui="enabled: false">
         <a-assets>
-            <a-asset-item id="characterModel" src="./MargaritaUp2.glb"></a-asset-item>
+            <a-asset-item id="characterModel1" src="./MargaritaUp2.glb"></a-asset-item>
+            <a-asset-item id="characterModel2" src="./cube.glb"></a-asset-item>
         </a-assets>
 
         <a-camera position="0 0 0" look-controls="enabled: false" cursor="fuse: false; rayOrigin: mouse;"
             raycaster="far: 10000; objects: .clickable"></a-camera>
 
         <!-- Our Target (Bank Card) -->
-        <a-entity id="target" mindar-image-target="targetIndex: 0">
-            <!-- The 3D Model attached to the target -->
-            <a-gltf-model id="character-model" src="#characterModel" position="0 0 0" scale="1 1 1" rotation="90 0 0"
-                animation-mixer="clip: *; loop: repeat"></a-gltf-model>
+        <a-entity id="target-marker1" data-marker-id="marker1" mindar-image-target="targetIndex: 0">
+            <a-gltf-model class="character-model" src="#characterModel1" position="0 0 0" scale="3 3 3"
+                rotation="90 0 0" animation-mixer="clip: *; loop: repeat"></a-gltf-model>
+        </a-entity>
+
+        <!-- targetIndex: 1 заработает после объединения 21lab2.mind и begemot.mind в один .mind файл -->
+        <a-entity id="target-marker2" data-marker-id="marker2" mindar-image-target="targetIndex: 1">
+            <a-gltf-model class="character-model" src="#characterModel2" position="0 0 0" scale="0.02 0.02 0.02"
+                rotation="0 0 0" animation-mixer="clip: *; loop: repeat"></a-gltf-model>
         </a-entity>
     </a-scene>
 
