@@ -3,11 +3,17 @@ const QUEST_STATE_KEY = 'sti_quest_progress';
 
 // ---- Content: marker → character + dialog tree ----
 // Add per-marker `modelUrl` to swap glb per character.
+const DEMO_MODEL = "https://modelviewer.dev/shared-assets/models/RobotExpressive.glb";
+const DEMO_MODEL_IOS = "https://modelviewer.dev/shared-assets/models/RobotExpressive.usdz";
+
 const questData = {
     marker1: {
         id: 1,
         character: "Антон Чехов",
-        modelUrl: "./cube.glb", // TODO: replace with chekhov.glb
+        modelUrl: DEMO_MODEL,         // TODO: заменить на chekhov.glb
+        modelUrlIos: DEMO_MODEL_IOS,  // TODO: заменить на chekhov.usdz
+        idleAnim: "Idle",
+        talkAnim: "Wave",
         dialogue: "Добро пожаловать в наш дворик. Вы готовы начать путешествие? Я приготовил для вас нечто особенное.",
         audioUrl: "/mock-audio-1.mp3",
         options: [
@@ -19,7 +25,10 @@ const questData = {
     marker2: {
         id: 2,
         character: "Всеволод Мейерхольд",
-        modelUrl: "./cube.glb", // TODO: replace with meyerhold.glb
+        modelUrl: DEMO_MODEL,         // TODO: заменить на meyerhold.glb
+        modelUrlIos: DEMO_MODEL_IOS,  // TODO: заменить на meyerhold.usdz
+        idleAnim: "Idle",
+        talkAnim: "Yes",
         dialogue: "Вы нашли вторую точку! Форма — это всё, не так ли? Как вам наша архитектура?",
         audioUrl: "/mock-audio-2.mp3",
         options: [
@@ -59,6 +68,29 @@ class QuestManager {
         console.log("Quest Manager init. Progress:", this.progress, "initial marker:", this.initialMarker);
         this.ui.startBtn.onclick = () => this.startApp();
         this.renderDevControls();
+        this.attachModelDiagnostics();
+    }
+
+    attachModelDiagnostics() {
+        const mv = this.ui.model;
+        mv.addEventListener('load', () => {
+            console.log('[model-viewer] модель загружена:', mv.getAttribute('src'));
+        });
+        mv.addEventListener('error', (e) => {
+            const detail = e.detail || {};
+            const msg = detail.sourceError?.message || detail.type || 'неизвестная ошибка';
+            console.error('[model-viewer] ошибка модели:', detail);
+            this.showToast(`Не удалось загрузить 3D: ${msg}`, true);
+        });
+        mv.addEventListener('ar-status', (e) => {
+            console.log('[model-viewer] AR status:', e.detail.status);
+            if (e.detail.status === 'failed') {
+                this.showToast('AR не запустился. Нужен HTTPS и устройство с ARKit/ARCore.', true);
+            }
+            if (e.detail.status === 'not-presenting') {
+                console.log('[model-viewer] AR сессия закрыта');
+            }
+        });
     }
 
     startApp() {
@@ -66,14 +98,22 @@ class QuestManager {
         this.ui.introOverlay.style.opacity = '0';
         setTimeout(() => { this.ui.introOverlay.style.display = 'none'; }, 500);
 
-        // Auto-trigger the scene for the marker encoded in the URL
-        this.scanMarker(this.initialMarker);
+        // Show the manual dialog start button instead of auto-triggering
+        const dialogBtn = document.getElementById('start-dialog-btn');
+        dialogBtn.style.display = 'block';
+        dialogBtn.onclick = () => {
+            dialogBtn.style.display = 'none';
+            this.scanMarker(this.initialMarker);
+        };
     }
 
     // ---- Model swap + animation control ----
-    setModel(url) {
+    setModel(url, iosUrl) {
         if (this.ui.model.getAttribute('src') !== url) {
             this.ui.model.setAttribute('src', url);
+        }
+        if (iosUrl && this.ui.model.getAttribute('ios-src') !== iosUrl) {
+            this.ui.model.setAttribute('ios-src', iosUrl);
         }
     }
 
@@ -124,8 +164,9 @@ class QuestManager {
 
     startScene(scene) {
         console.log(`[SCENE] ${scene.character}, model=${scene.modelUrl}`);
-        this.setModel(scene.modelUrl);
-        this.playAnimation('idle');
+        this.currentScene = scene;
+        this.setModel(scene.modelUrl, scene.modelUrlIos);
+        this.playAnimation(scene.idleAnim);
         // TODO: hook real audio when files are ready
         // new Audio(scene.audioUrl).play().catch(()=>{});
 
@@ -148,7 +189,7 @@ class QuestManager {
 
     handleOptionClick(option, scene) {
         console.log(`[USER] ${option.text} → ${option.nextAction}`);
-        this.playAnimation('talk');
+        this.playAnimation(scene.talkAnim);
 
         if (!this.progress.completed.includes(scene.id)) {
             this.progress.completed.push(scene.id);
@@ -162,7 +203,7 @@ class QuestManager {
             this.renderOptions([{ text: "Понятно!", nextAction: "talk_next" }], scene);
         } else {
             // After a beat, return to idle and close UI
-            setTimeout(() => this.playAnimation('idle'), 800);
+            setTimeout(() => this.playAnimation(scene.idleAnim), 1200);
             this.hideUI();
             this.showToast("Отлично! Ищите следующую точку.");
         }

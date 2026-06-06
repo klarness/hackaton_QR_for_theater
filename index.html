@@ -11,33 +11,47 @@
 </head>
 <body>
 
+    <!-- Камера телефона как фон страницы (запускается по тапу «Начать») -->
+    <video id="camera-bg" autoplay playsinline muted></video>
+
     <!-- Dev controls to mock marker scanning (will be removed in prod) -->
     <div class="dev-controls" id="dev-controls">
         <!-- Buttons injected by JS -->
     </div>
 
-    <!-- 3D / AR Scene (model-viewer) -->
+    <!-- 3D Scene (model-viewer) — оптимизирован под диалог с персонажем -->
     <model-viewer
         id="ar-model"
-        src="./cube.glb"
-        alt="AR-персонаж"
+        src="https://modelviewer.dev/shared-assets/models/RobotExpressive.glb"
+        ios-src="https://modelviewer.dev/shared-assets/models/RobotExpressive.usdz"
+        alt="3D-персонаж"
         ar
         ar-modes="webxr scene-viewer quick-look"
         ar-scale="auto"
         ar-placement="floor"
         camera-controls
+        disable-pan
         touch-action="pan-y"
         autoplay
-        shadow-intensity="1"
-        exposure="1"
+        shadow-intensity="1.4"
+        shadow-softness="0.8"
+        exposure="1.1"
         environment-image="neutral"
-        camera-orbit="0deg 80deg 2.5m"
-        field-of-view="35deg"
+        camera-target="0m 1.8m 0m"
+        camera-orbit="0deg 78deg 8m"
+        min-camera-orbit="-45deg 60deg 6m"
+        max-camera-orbit="45deg 95deg 12m"
+        field-of-view="25deg"
         interaction-prompt="none">
         <button slot="ar-button" class="ar-button" id="ar-button">
-            👁 Посмотреть в моём пространстве
+            👁 В AR
         </button>
     </model-viewer>
+
+    <!-- Button to trigger dialogue after AR experience -->
+    <button id="start-dialog-btn" class="btn-primary" style="position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); z-index: 10; display: none; box-shadow: 0 4px 20px rgba(0,0,0,0.5);">
+        💬 Начать диалог с персонажем
+    </button>
 
     <!-- Intro overlay -->
     <div class="intro-overlay" id="intro-overlay">

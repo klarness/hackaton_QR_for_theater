@@ -25,32 +25,43 @@ body {
     position: relative;
 }
 
-/* 3D / AR viewport */
+/* Камера телефона на фоне всей страницы */
+#camera-bg {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    object-fit: cover;
+    z-index: 0;
+    background: #0a0a0a; /* фолбэк пока камера не подключилась */
+}
+
+/* 3D viewport — прозрачный, чтобы сквозь него была видна камера */
 model-viewer {
     position: absolute;
     top: 0;
     left: 0;
     width: 100vw;
     height: 100vh;
-    background: radial-gradient(circle at 50% 40%, #1f2a1a 0%, #0a0a0a 80%);
+    background: transparent;
     --poster-color: transparent;
     z-index: 1;
 }
 
-/* AR button rendered by model-viewer when AR is supported */
+/* AR button — ненавязчиво в правом верхнем углу, не мешает диалогу */
 .ar-button {
     position: absolute;
-    bottom: 220px;
-    left: 50%;
-    transform: translateX(-50%);
+    top: 20px;
+    right: 20px;
     background: var(--glass-bg);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
     border: 1px solid var(--secondary);
     color: var(--text-light);
-    padding: 12px 22px;
+    padding: 10px 16px;
     border-radius: 30px;
-    font-size: 0.95rem;
+    font-size: 0.85rem;
     font-weight: 600;
     cursor: pointer;
     z-index: 25;
