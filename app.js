@@ -40,7 +40,8 @@ class QuestManager {
             cameraContainer: document.getElementById('camera-container'),
             cameraFeed: document.getElementById('camera-feed'),
             introOverlay: document.getElementById('intro-overlay'),
-            startBtn: document.getElementById('start-btn')
+            startBtn: document.getElementById('start-btn'),
+            trackingHint: document.getElementById('tracking-hint')
         };
         
         this.init();
@@ -126,6 +127,7 @@ class QuestManager {
         console.log(`[AUDIO MOCK] Play: ${scene.audioUrl}`);
         
         this.ui.overlay.style.display = 'flex';
+        this.ui.trackingHint.style.display = 'flex';
         this.ui.characterName.textContent = scene.character;
         
         // Setup dialogue text
@@ -189,6 +191,7 @@ class QuestManager {
 
     hideUI() {
         this.ui.overlay.style.display = 'none';
+        this.ui.trackingHint.style.display = 'none';
     }
 
     showToast(msg, isError = false) {

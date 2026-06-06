@@ -215,6 +215,39 @@ button {
     box-shadow: 0 8px 25px rgba(255, 255, 255, 0.3);
 }
 
+/* Tracking Hint UI */
+.tracking-hint {
+    position: absolute;
+    top: 25px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--glass-bg);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid var(--secondary);
+    color: var(--text-light);
+    padding: 10px 20px;
+    border-radius: 30px;
+    font-size: 0.95rem;
+    font-weight: 400;
+    z-index: 15;
+    display: none; /* Hidden by default */
+    align-items: center;
+    gap: 8px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+    animation: pulse-border 2s infinite;
+}
+
+@keyframes pulse-border {
+    0% { border-color: rgba(146, 186, 110, 0.4); }
+    50% { border-color: rgba(146, 186, 110, 1); }
+    100% { border-color: rgba(146, 186, 110, 0.4); }
+}
+
+.tracking-hint .icon {
+    font-size: 1.2rem;
+}
+
 /* Toast Notifications */
 .toast {
     position: absolute;
