@@ -1,6 +1,13 @@
 // Mocking AR interactions and endpoints for the MVP
 const QUEST_STATE_KEY = 'sti_quest_progress';
 
+// Какой сцене соответствует какой targetIndex в .mind файле.
+// В компилере MindAR картинки нумеруются по порядку добавления.
+const TARGET_INDEX_TO_MARKER = {
+    0: 'marker1', // первая картинка → Маргарита
+    1: 'marker2'  // вторая картинка → Бегемот
+};
+
 // ============================================================
 // Принудительный апгрейд камеры для MindAR.
 // MindAR не пробрасывает constraints через A-Frame атрибуты,
@@ -219,10 +226,9 @@ class QuestManager {
             introOverlay: document.getElementById('intro-overlay'),
             startBtn: document.getElementById('start-btn'),
             trackingHint: document.getElementById('tracking-hint'),
-            arScene: document.getElementById('ar-scene'),
-            characterModel: document.getElementById('character-model')
+            arScene: document.getElementById('ar-scene')
         };
-        
+
         this.init();
     }
 
@@ -236,15 +242,15 @@ class QuestManager {
     }
 
     bindModelEvents() {
-        if (!this.ui.characterModel) return;
-
-        this.ui.characterModel.addEventListener('model-loaded', event => {
-            console.log('[model] loaded:', event.detail?.format, this.ui.characterModel.getObject3D('mesh'));
-        });
-
-        this.ui.characterModel.addEventListener('model-error', event => {
-            console.error('[model] error:', event.detail);
-            this.showToast('Ошибка загрузки 3D-модели. Смотрите консоль браузера.', true);
+        // Слушаем загрузку/ошибки на всех gltf-моделях внутри обоих таргетов
+        document.querySelectorAll('a-gltf-model').forEach(el => {
+            el.addEventListener('model-loaded', event => {
+                console.log('[model] loaded:', el.getAttribute('src'), event.detail?.format);
+            });
+            el.addEventListener('model-error', event => {
+                console.error('[model] error:', el.getAttribute('src'), event.detail);
+                this.showToast(`Ошибка загрузки модели ${el.getAttribute('src')}`, true);
+            });
         });
     }
 
@@ -342,20 +348,26 @@ class QuestManager {
     }
 
     bindAREvents() {
-        const targetEl = document.querySelector('#target');
-        
-        targetEl.addEventListener("targetFound", event => {
-            console.log("Target found!");
-            // Automatically trigger marker 1 for testing purposes
-            if (!this.progress.currentMarker) {
-                this.scanMarker('marker1');
+        // Слушаем оба таргета независимо: каждый запускает свою сцену.
+        for (const [idx, markerId] of Object.entries(TARGET_INDEX_TO_MARKER)) {
+            const sel = markerId === 'marker1' ? '#target-margarita' : '#target-behemoth';
+            const el = document.querySelector(sel);
+            if (!el) {
+                console.warn(`[AR] не найдена сущность ${sel} для targetIndex ${idx}`);
+                continue;
             }
-        });
 
-        targetEl.addEventListener("targetLost", event => {
-            console.log("Target lost!");
-            this.showToast("Цель потеряна, наведите камеру обратно", true);
-        });
+            el.addEventListener('targetFound', () => {
+                console.log(`[AR] targetIndex ${idx} found → scanMarker('${markerId}')`);
+                // Не перезапускаем сцену если диалог уже открыт
+                if (this.ui.overlay.style.display === 'flex') return;
+                this.scanMarker(markerId);
+            });
+
+            el.addEventListener('targetLost', () => {
+                console.log(`[AR] targetIndex ${idx} lost`);
+            });
+        }
     }
 
     loadProgress() {
@@ -402,21 +414,11 @@ class QuestManager {
         console.log(`[AUDIO MOCK] Play: ${scene.audioUrl}`);
 
         this.currentScene = scene;
-        this.applySceneModel(scene.model);
         this.ui.overlay.style.display = 'flex';
         this.ui.trackingHint.style.display = 'flex';
         this.ui.characterName.textContent = scene.character;
 
         this.showNode(scene.startNode || 'start');
-    }
-
-    // Подмена 3D-модели под текущую сцену (для marker2 пока куб-заглушка)
-    applySceneModel(model) {
-        if (!model || !this.ui.characterModel) return;
-        if (model.url) this.ui.characterModel.setAttribute('src', model.url);
-        if (model.scale) this.ui.characterModel.setAttribute('scale', model.scale);
-        if (model.rotation) this.ui.characterModel.setAttribute('rotation', model.rotation);
-        console.log('[model] swapped to', model.url, 'scale:', model.scale);
     }
 
     showNode(nodeId) {
