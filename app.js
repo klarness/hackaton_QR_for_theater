@@ -295,376 +295,377 @@ class QuestManager {
                 console.log('[model-viewer] AR сессия закрыта');
             }
         }
+    }
+}
+
+startApp() {
+    // Hide intro
+    this.ui.introOverlay.style.opacity = '0';
+    setTimeout(() => { this.ui.introOverlay.style.display = 'none'; }, 500);
+
+    // Show the manual dialog start button instead of auto-triggering
+    const dialogBtn = document.getElementById('start-dialog-btn');
+    dialogBtn.style.display = 'block';
+    dialogBtn.onclick = () => {
+        dialogBtn.style.display = 'none';
+        this.scanMarker(this.initialMarker);
     };
+}
 
-    startApp() {
-        // Hide intro
-        this.ui.introOverlay.style.opacity = '0';
-        setTimeout(() => { this.ui.introOverlay.style.display = 'none'; }, 500);
-
-        // Show the manual dialog start button instead of auto-triggering
-        const dialogBtn = document.getElementById('start-dialog-btn');
-        dialogBtn.style.display = 'block';
-        dialogBtn.onclick = () => {
-            dialogBtn.style.display = 'none';
-            this.scanMarker(this.initialMarker);
-        };
+// ---- Model swap + animation control ----
+setModel(url, iosUrl) {
+    if (this.ui.model.getAttribute('src') !== url) {
+        this.ui.model.setAttribute('src', url);
     }
-
-    // ---- Model swap + animation control ----
-    setModel(url, iosUrl) {
-        if (this.ui.model.getAttribute('src') !== url) {
-            this.ui.model.setAttribute('src', url);
-        }
-        if (iosUrl && this.ui.model.getAttribute('ios-src') !== iosUrl) {
-            this.ui.model.setAttribute('ios-src', iosUrl);
-        }
+    if (iosUrl && this.ui.model.getAttribute('ios-src') !== iosUrl) {
+        this.ui.model.setAttribute('ios-src', iosUrl);
     }
+}
 
     // Досылаем настройки которые можно применить только после открытия потока
     async tuneActiveCamera() {
-        const videos = document.querySelectorAll('video');
-        let track = null;
-        for (const v of videos) {
-            if (v.srcObject?.getVideoTracks) {
-                const t = v.srcObject.getVideoTracks()[0];
-                if (t && t.readyState === 'live') { track = t; break; }
-            }
+    const videos = document.querySelectorAll('video');
+    let track = null;
+    for (const v of videos) {
+        if (v.srcObject?.getVideoTracks) {
+            const t = v.srcObject.getVideoTracks()[0];
+            if (t && t.readyState === 'live') { track = t; break; }
         }
-        if (!track) {
-            console.warn('[camera] активный video-трек не найден');
+    }
+    if (!track) {
+        console.warn('[camera] активный video-трек не найден');
+        return;
+    }
+
+    const caps = track.getCapabilities?.() || {};
+    const settings = track.getSettings?.() || {};
+    console.log('[camera] post-start caps:', caps, 'settings:', settings);
+
+    const advanced = [];
+
+    // Непрерывный автофокус — главный буст для распознавания
+    if (caps.focusMode?.includes('continuous')) {
+        advanced.push({ focusMode: 'continuous' });
+    }
+    if (caps.exposureMode?.includes('continuous')) {
+        advanced.push({ exposureMode: 'continuous' });
+    }
+    if (caps.whiteBalanceMode?.includes('continuous')) {
+        advanced.push({ whiteBalanceMode: 'continuous' });
+    }
+
+    // Мягкий цифровой зум 1.5x — увеличивает «угловой размер» маркера
+    // в кадре, MindAR проще ловит фичи. Только если девайс умеет.
+    if (caps.zoom) {
+        const targetZoom = Math.min(1.5, caps.zoom.max);
+        if (targetZoom > (caps.zoom.min || 1)) {
+            advanced.push({ zoom: targetZoom });
+        }
+    }
+
+    if (advanced.length === 0) {
+        console.log('[camera] нечего подкручивать (девайс не поддерживает)');
+        return;
+    }
+
+    try {
+        await track.applyConstraints({ advanced });
+        console.log('[camera] подкручено:', advanced);
+    } catch (e) {
+        console.warn('[camera] applyConstraints не сработал:', e);
+    }
+}
+
+bindAREvents() {
+    // Слушаем оба таргета независимо: каждый запускает свою сцену.
+    for (const [idx, markerId] of Object.entries(TARGET_INDEX_TO_MARKER)) {
+        const sel = markerId === 'marker1' ? '#target-margarita' : '#target-behemoth';
+        const el = document.querySelector(sel);
+        if (!el) {
+            console.warn(`[AR] не найдена сущность ${sel} для targetIndex ${idx}`);
+            continue;
+        }
+
+        el.addEventListener('targetFound', () => {
+            console.log(`[AR] targetIndex ${idx} found → scanMarker('${markerId}')`);
+            // Не перезапускаем сцену если диалог уже открыт
+            if (this.ui.overlay.style.display === 'flex') return;
+            this.scanMarker(markerId);
+        });
+
+        el.addEventListener('targetLost', () => {
+            console.log(`[AR] targetIndex ${idx} lost`);
+        });
+    }
+}
+
+// ---- Quest state ----
+loadProgress() {
+    const data = localStorage.getItem(QUEST_STATE_KEY);
+    return data ? JSON.parse(data) : { currentMarker: null, completed: [] };
+}
+
+saveProgress() {
+    localStorage.setItem(QUEST_STATE_KEY, JSON.stringify(this.progress));
+}
+
+resetProgress() {
+    localStorage.removeItem(QUEST_STATE_KEY);
+    this.progress = { currentMarker: null, completed: [] };
+    this.hideUI();
+    this.showToast("Прогресс сброшен.");
+}
+
+scanMarker(markerId) {
+    const scene = questData[markerId];
+    if (!scene) {
+        this.showToast("Неизвестный маркер.", true);
+        return;
+    }
+    if (scene.requiredPrevious && !this.progress.completed.includes(scene.requiredPrevious)) {
+        this.showToast("Сначала пройдите предыдущую точку квеста!", true);
+        return;
+    }
+    this.progress.currentMarker = scene.id;
+    this.saveProgress();
+    this.startScene(scene);
+}
+
+startScene(scene) {
+    console.log(`[SCENE] ${scene.character} (marker ${scene.id})`);
+    console.log(`[AR MOCK] Play Animation: idle`);
+    console.log(`[AUDIO MOCK] Play: ${scene.audioUrl}`);
+
+    this.currentScene = scene;
+    this.ui.overlay.style.display = 'flex';
+    this.ui.characterName.textContent = scene.character;
+
+    this.showNode(scene.startNode || 'start');
+}
+
+showNode(nodeId) {
+    const tree = this.currentScene?.tree;
+    if (!tree) {
+        console.warn('[dialogue] нет дерева в текущей сцене');
+        return;
+    }
+    const node = tree[nodeId];
+    if (!node) {
+        console.warn('[dialogue] неизвестная нода:', nodeId);
+        return;
+    }
+
+    this.currentNode = nodeId;
+    this.updateDialogueImage(node.imageUrl);
+
+    // Опции прячем пока реплика печатается — UX задача от юзера
+    this.ui.optionsContainer.innerHTML = '';
+
+    this.typewriteText(node.text, () => {
+        if (node.input) {
+            this.renderInput(node.input);
+        } else {
+            this.renderOptions(node.options || []);
+        }
+    });
+}
+
+renderInput(input) {
+    this.ui.optionsContainer.innerHTML = '';
+
+    const inputEl = document.createElement('input');
+    inputEl.type = input.type || 'text';
+    inputEl.className = 'dialogue-input';
+    inputEl.placeholder = input.placeholder || '';
+    if (input.type === 'email') {
+        inputEl.autocomplete = 'email';
+        inputEl.inputMode = 'email';
+    }
+
+    const btn = document.createElement('button');
+    btn.className = 'btn-primary';
+    btn.textContent = input.buttonText || 'Отправить';
+
+    const submit = () => {
+        const value = inputEl.value.trim();
+        if (!value) {
+            inputEl.focus();
+            this.showToast('Введите почту, чтобы Бегемот отправил подарок', true);
+            return;
+        }
+        // Простейшая валидация email — наличие @ и точки после
+        if (input.type === 'email' && !/^.+@.+\..+$/.test(value)) {
+            inputEl.focus();
+            this.showToast('Похоже, в почте опечатка', true);
             return;
         }
 
-        const caps = track.getCapabilities?.() || {};
-        const settings = track.getSettings?.() || {};
-        console.log('[camera] post-start caps:', caps, 'settings:', settings);
-
-        const advanced = [];
-
-        // Непрерывный автофокус — главный буст для распознавания
-        if (caps.focusMode?.includes('continuous')) {
-            advanced.push({ focusMode: 'continuous' });
-        }
-        if (caps.exposureMode?.includes('continuous')) {
-            advanced.push({ exposureMode: 'continuous' });
-        }
-        if (caps.whiteBalanceMode?.includes('continuous')) {
-            advanced.push({ whiteBalanceMode: 'continuous' });
-        }
-
-        // Мягкий цифровой зум 1.5x — увеличивает «угловой размер» маркера
-        // в кадре, MindAR проще ловит фичи. Только если девайс умеет.
-        if (caps.zoom) {
-            const targetZoom = Math.min(1.5, caps.zoom.max);
-            if (targetZoom > (caps.zoom.min || 1)) {
-                advanced.push({ zoom: targetZoom });
-            }
-        }
-
-        if (advanced.length === 0) {
-            console.log('[camera] нечего подкручивать (девайс не поддерживает)');
-            return;
-        }
-
-        try {
-            await track.applyConstraints({ advanced });
-            console.log('[camera] подкручено:', advanced);
-        } catch (e) {
-            console.warn('[camera] applyConstraints не сработал:', e);
-        }
-    }
-
-    bindAREvents() {
-        // Слушаем оба таргета независимо: каждый запускает свою сцену.
-        for (const [idx, markerId] of Object.entries(TARGET_INDEX_TO_MARKER)) {
-            const sel = markerId === 'marker1' ? '#target-margarita' : '#target-behemoth';
-            const el = document.querySelector(sel);
-            if (!el) {
-                console.warn(`[AR] не найдена сущность ${sel} для targetIndex ${idx}`);
-                continue;
-            }
-
-            el.addEventListener('targetFound', () => {
-                console.log(`[AR] targetIndex ${idx} found → scanMarker('${markerId}')`);
-                // Не перезапускаем сцену если диалог уже открыт
-                if (this.ui.overlay.style.display === 'flex') return;
-                this.scanMarker(markerId);
-            });
-
-            el.addEventListener('targetLost', () => {
-                console.log(`[AR] targetIndex ${idx} lost`);
-            });
-        }
-    }
-
-    // ---- Quest state ----
-    loadProgress() {
-        const data = localStorage.getItem(QUEST_STATE_KEY);
-        return data ? JSON.parse(data) : { currentMarker: null, completed: [] };
-    }
-
-    saveProgress() {
-        localStorage.setItem(QUEST_STATE_KEY, JSON.stringify(this.progress));
-    }
-
-    resetProgress() {
-        localStorage.removeItem(QUEST_STATE_KEY);
-        this.progress = { currentMarker: null, completed: [] };
-        this.hideUI();
-        this.showToast("Прогресс сброшен.");
-    }
-
-    scanMarker(markerId) {
-        const scene = questData[markerId];
-        if (!scene) {
-            this.showToast("Неизвестный маркер.", true);
-            return;
-        }
-        if (scene.requiredPrevious && !this.progress.completed.includes(scene.requiredPrevious)) {
-            this.showToast("Сначала пройдите предыдущую точку квеста!", true);
-            return;
-        }
-        this.progress.currentMarker = scene.id;
+        // Сохраняем — для прода тут будет POST на бэкенд
+        this.progress.email = value;
         this.saveProgress();
-        this.startScene(scene);
+        console.log('[email] сохранена:', value);
+
+        if (input.next) this.showNode(input.next);
+    };
+
+    btn.onclick = submit;
+    inputEl.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') submit();
+    });
+
+    this.ui.optionsContainer.appendChild(inputEl);
+    this.ui.optionsContainer.appendChild(btn);
+    // На мобильных не фокусим автоматически — клавиатура выскочит и закроет коробку
+}
+
+// Печатная машинка: слова появляются последовательно с паузами на знаках.
+// Тап по диалог-коробке скипает анимацию до конца.
+typewriteText(fullText, onDone) {
+    // Прервать предыдущую анимацию если была
+    if (this._typewriterTimeout) {
+        clearTimeout(this._typewriterTimeout);
+        this._typewriterTimeout = null;
     }
 
-    startScene(scene) {
-        console.log(`[SCENE] ${scene.character} (marker ${scene.id})`);
-        console.log(`[AR MOCK] Play Animation: idle`);
-        console.log(`[AUDIO MOCK] Play: ${scene.audioUrl}`);
+    const tokens = fullText.split(/(\s+)/); // сохраняем пробелы и \n
+    const PUNCT_PAUSE = { '.': 220, '!': 220, '?': 220, '…': 220, ',': 120, ':': 120, ';': 120 };
+    const WORD_DELAY = 80;
 
-        this.currentScene = scene;
-        this.ui.overlay.style.display = 'flex';
-        this.ui.characterName.textContent = scene.character;
+    this.ui.dialogueText.textContent = '';
+    let i = 0;
 
-        this.showNode(scene.startNode || 'start');
-    }
+    const finish = () => {
+        this.ui.dialogueText.textContent = fullText;
+        this._typewriterTimeout = null;
+        this.ui.dialogueBox.onclick = null;
+        if (onDone) onDone();
+    };
 
-    showNode(nodeId) {
-        const tree = this.currentScene?.tree;
-        if (!tree) {
-            console.warn('[dialogue] нет дерева в текущей сцене');
-            return;
-        }
-        const node = tree[nodeId];
-        if (!node) {
-            console.warn('[dialogue] неизвестная нода:', nodeId);
-            return;
-        }
-
-        this.currentNode = nodeId;
-        this.updateDialogueImage(node.imageUrl);
-
-        // Опции прячем пока реплика печатается — UX задача от юзера
-        this.ui.optionsContainer.innerHTML = '';
-
-        this.typewriteText(node.text, () => {
-            if (node.input) {
-                this.renderInput(node.input);
-            } else {
-                this.renderOptions(node.options || []);
-            }
-        });
-    }
-
-    renderInput(input) {
-        this.ui.optionsContainer.innerHTML = '';
-
-        const inputEl = document.createElement('input');
-        inputEl.type = input.type || 'text';
-        inputEl.className = 'dialogue-input';
-        inputEl.placeholder = input.placeholder || '';
-        if (input.type === 'email') {
-            inputEl.autocomplete = 'email';
-            inputEl.inputMode = 'email';
-        }
-
-        const btn = document.createElement('button');
-        btn.className = 'btn-primary';
-        btn.textContent = input.buttonText || 'Отправить';
-
-        const submit = () => {
-            const value = inputEl.value.trim();
-            if (!value) {
-                inputEl.focus();
-                this.showToast('Введите почту, чтобы Бегемот отправил подарок', true);
-                return;
-            }
-            // Простейшая валидация email — наличие @ и точки после
-            if (input.type === 'email' && !/^.+@.+\..+$/.test(value)) {
-                inputEl.focus();
-                this.showToast('Похоже, в почте опечатка', true);
-                return;
-            }
-
-            // Сохраняем — для прода тут будет POST на бэкенд
-            this.progress.email = value;
-            this.saveProgress();
-            console.log('[email] сохранена:', value);
-
-            if (input.next) this.showNode(input.next);
-        };
-
-        btn.onclick = submit;
-        inputEl.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') submit();
-        });
-
-        this.ui.optionsContainer.appendChild(inputEl);
-        this.ui.optionsContainer.appendChild(btn);
-        // На мобильных не фокусим автоматически — клавиатура выскочит и закроет коробку
-    }
-
-    // Печатная машинка: слова появляются последовательно с паузами на знаках.
-    // Тап по диалог-коробке скипает анимацию до конца.
-    typewriteText(fullText, onDone) {
-        // Прервать предыдущую анимацию если была
+    // Тап-скип
+    this.ui.dialogueBox.onclick = () => {
         if (this._typewriterTimeout) {
             clearTimeout(this._typewriterTimeout);
-            this._typewriterTimeout = null;
+            finish();
         }
+    };
 
-        const tokens = fullText.split(/(\s+)/); // сохраняем пробелы и \n
-        const PUNCT_PAUSE = { '.': 220, '!': 220, '?': 220, '…': 220, ',': 120, ':': 120, ';': 120 };
-        const WORD_DELAY = 80;
+    const tick = () => {
+        if (i >= tokens.length) { finish(); return; }
+        const token = tokens[i++];
+        this.ui.dialogueText.textContent += token;
+        const lastChar = token.trim().slice(-1);
+        const delay = PUNCT_PAUSE[lastChar] ?? WORD_DELAY;
+        this._typewriterTimeout = setTimeout(tick, delay);
+    };
+    tick();
+}
 
-        this.ui.dialogueText.textContent = '';
-        let i = 0;
-
-        const finish = () => {
-            this.ui.dialogueText.textContent = fullText;
-            this._typewriterTimeout = null;
-            this.ui.dialogueBox.onclick = null;
-            if (onDone) onDone();
-        };
-
-        // Тап-скип
-        this.ui.dialogueBox.onclick = () => {
-            if (this._typewriterTimeout) {
-                clearTimeout(this._typewriterTimeout);
-                finish();
-            }
-        };
-
-        const tick = () => {
-            if (i >= tokens.length) { finish(); return; }
-            const token = tokens[i++];
-            this.ui.dialogueText.textContent += token;
-            const lastChar = token.trim().slice(-1);
-            const delay = PUNCT_PAUSE[lastChar] ?? WORD_DELAY;
-            this._typewriterTimeout = setTimeout(tick, delay);
-        };
-        tick();
-    }
-
-    updateDialogueImage(url) {
-        let img = document.getElementById('dialogue-image');
-        if (url) {
-            if (!img) {
-                img = document.createElement('img');
-                img.id = 'dialogue-image';
-                img.className = 'dialogue-image';
-                img.alt = 'Подсказка';
-                this.ui.dialogueBox.appendChild(img);
-            }
-            img.src = url;
-            img.style.display = 'block';
-        } else if (img) {
-            img.style.display = 'none';
+updateDialogueImage(url) {
+    let img = document.getElementById('dialogue-image');
+    if (url) {
+        if (!img) {
+            img = document.createElement('img');
+            img.id = 'dialogue-image';
+            img.className = 'dialogue-image';
+            img.alt = 'Подсказка';
+            this.ui.dialogueBox.appendChild(img);
         }
+        img.src = url;
+        img.style.display = 'block';
+    } else if (img) {
+        img.style.display = 'none';
     }
+}
 
-    renderOptions(options) {
-        this.ui.optionsContainer.innerHTML = '';
-        options.forEach(opt => {
-            const btn = document.createElement('button');
-            btn.className = 'btn-primary';
-            btn.textContent = opt.text;
-            btn.onclick = () => this.handleOption(opt);
-            this.ui.optionsContainer.appendChild(btn);
-        });
+renderOptions(options) {
+    this.ui.optionsContainer.innerHTML = '';
+    options.forEach(opt => {
+        const btn = document.createElement('button');
+        btn.className = 'btn-primary';
+        btn.textContent = opt.text;
+        btn.onclick = () => this.handleOption(opt);
+        this.ui.optionsContainer.appendChild(btn);
+    });
+}
+
+handleOption(option) {
+    console.log(`[USER] "${option.text}" → ${option.next || option.action}`);
+    console.log(`[AR MOCK] Play Animation: talk`);
+
+    if (option.action === 'show_promo') {
+        this.markSceneCompleted();
+        this.showFinalScreen();
+        return;
     }
-
-    handleOption(option) {
-        console.log(`[USER] "${option.text}" → ${option.next || option.action}`);
-        console.log(`[AR MOCK] Play Animation: talk`);
-
-        if (option.action === 'show_promo') {
-            this.markSceneCompleted();
-            this.showFinalScreen();
-            return;
-        }
-        if (option.action === 'complete') {
-            this.markSceneCompleted();
-            this.hideUI();
-            this.showToast('Отлично! Ищите следующую точку.');
-            return;
-        }
-        if (option.next) {
-            this.showNode(option.next);
-            return;
-        }
-        console.warn('[dialogue] у опции нет ни next, ни action:', option);
+    if (option.action === 'complete') {
+        this.markSceneCompleted();
+        this.hideUI();
+        this.showToast('Отлично! Ищите следующую точку.');
+        return;
     }
-
-    markSceneCompleted() {
-        const id = this.currentScene?.id;
-        if (id && !this.progress.completed.includes(id)) {
-            this.progress.completed.push(id);
-            this.saveProgress();
-        }
+    if (option.next) {
+        this.showNode(option.next);
+        return;
     }
+    console.warn('[dialogue] у опции нет ни next, ни action:', option);
+}
 
-    showFinalScreen() {
-        this.ui.characterName.textContent = "Квест пройден!";
-        this.ui.dialogueText.textContent = "Поздравляем! Ваш промокод: ZUMER_STI_2024.";
-        this.ui.optionsContainer.innerHTML = '';
-
-        const buyBtn = document.createElement('button');
-        buyBtn.className = 'btn-buy';
-        buyBtn.textContent = 'Купить билет со скидкой';
-        buyBtn.onclick = () => window.open('https://sti.ru', '_blank');
-        this.ui.optionsContainer.appendChild(buyBtn);
+markSceneCompleted() {
+    const id = this.currentScene?.id;
+    if (id && !this.progress.completed.includes(id)) {
+        this.progress.completed.push(id);
+        this.saveProgress();
     }
+}
 
-    hideUI() {
-        this.ui.overlay.style.display = 'none';
-    }
+showFinalScreen() {
+    this.ui.characterName.textContent = "Квест пройден!";
+    this.ui.dialogueText.textContent = "Поздравляем! Ваш промокод: ZUMER_STI_2024.";
+    this.ui.optionsContainer.innerHTML = '';
 
-    showToast(msg, isError = false) {
-        let toast = document.getElementById('toast');
-        if (!toast) {
-            toast = document.createElement('div');
-            toast.id = 'toast';
-            toast.className = 'toast';
-            document.body.appendChild(toast);
-        }
-        toast.textContent = msg;
-        toast.style.background = isError ? '#ff6b6b' : 'rgba(255,255,255,0.95)';
-        toast.style.color = isError ? '#fff' : 'var(--dark-bg)';
-        toast.classList.remove('show');
-        void toast.offsetWidth;
-        toast.classList.add('show');
-        if (this.toastTimeout) clearTimeout(this.toastTimeout);
-        this.toastTimeout = setTimeout(() => toast.classList.remove('show'), 3000);
-    }
+    const buyBtn = document.createElement('button');
+    buyBtn.className = 'btn-buy';
+    buyBtn.textContent = 'Купить билет со скидкой';
+    buyBtn.onclick = () => window.open('https://sti.ru', '_blank');
+    this.ui.optionsContainer.appendChild(buyBtn);
+}
 
-    renderDevControls() {
-        Object.keys(questData).forEach(key => {
-            const btn = document.createElement('button');
-            btn.textContent = `[Dev] ${key}`;
-            btn.className = 'dev-btn';
-            btn.onclick = () => this.scanMarker(key);
-            this.ui.devControls.appendChild(btn);
-        });
-        const resetBtn = document.createElement('button');
-        resetBtn.textContent = "[Dev] Сброс";
-        resetBtn.className = 'dev-btn reset';
-        resetBtn.onclick = () => this.resetProgress();
-        this.ui.devControls.appendChild(resetBtn);
+hideUI() {
+    this.ui.overlay.style.display = 'none';
+}
+
+showToast(msg, isError = false) {
+    let toast = document.getElementById('toast');
+    if (!toast) {
+        toast = document.createElement('div');
+        toast.id = 'toast';
+        toast.className = 'toast';
+        document.body.appendChild(toast);
     }
+    toast.textContent = msg;
+    toast.style.background = isError ? '#ff6b6b' : 'rgba(255,255,255,0.95)';
+    toast.style.color = isError ? '#fff' : 'var(--dark-bg)';
+    toast.classList.remove('show');
+    void toast.offsetWidth;
+    toast.classList.add('show');
+    if (this.toastTimeout) clearTimeout(this.toastTimeout);
+    this.toastTimeout = setTimeout(() => toast.classList.remove('show'), 3000);
+}
+
+renderDevControls() {
+    Object.keys(questData).forEach(key => {
+        const btn = document.createElement('button');
+        btn.textContent = `[Dev] ${key}`;
+        btn.className = 'dev-btn';
+        btn.onclick = () => this.scanMarker(key);
+        this.ui.devControls.appendChild(btn);
+    });
+    const resetBtn = document.createElement('button');
+    resetBtn.textContent = "[Dev] Сброс";
+    resetBtn.className = 'dev-btn reset';
+    resetBtn.onclick = () => this.resetProgress();
+    this.ui.devControls.appendChild(resetBtn);
+}
 }
 
 document.addEventListener('DOMContentLoaded', () => {
