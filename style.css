@@ -161,6 +161,19 @@ body {
     font-size: 1.05rem;
     line-height: 1.5;
     font-weight: 300;
+    white-space: pre-line; /* сохранять переносы строк из questData */
+}
+
+/* Картинка-подсказка внутри диалога (например, фото мемориальной таблички) */
+.dialogue-image {
+    display: block;
+    width: 100%;
+    max-height: 220px;
+    object-fit: cover;
+    border-radius: 10px;
+    margin-top: 14px;
+    border: 1px solid var(--glass-border);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
 }
 
 .options-container {

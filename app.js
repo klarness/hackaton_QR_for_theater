@@ -60,29 +60,93 @@ const QUEST_STATE_KEY = 'sti_quest_progress';
     };
 })();
 
-// Mock dialog tree and flow
+// Дерево диалогов: каждая сцена это set из node'ов, options ведут на next или triggers action.
+// action: "complete"   — закрыть сцену, отметить пройденной, тост со следующей точкой
+// action: "show_promo" — финальный экран с промокодом
 const questData = {
     marker1: {
         id: 1,
-        character: "Антон Чехов",
-        dialogue: "Добро пожаловать в наш дворик. Вы готовы начать путешествие? Я приготовил для вас нечто особенное.",
+        character: "Маргарита",
         audioUrl: "/mock-audio-1.mp3",
-        options: [
-            { text: "Да, готов!", nextAction: "talk_next" },
-            { text: "Что мне нужно делать?", nextAction: "explain_rules" }
-        ],
-        requiredPrevious: null
+        requiredPrevious: null,
+        startNode: "start",
+        tree: {
+            start: {
+                text: "Не смотрите так.\nЯ не всегда была такой.\n\nСкажите...\n\nЕсли любовь требует от вас отказаться от всего, кем вы были, — это всё ещё любовь?",
+                options: [
+                    { text: "Да. Если это настоящая любовь.", next: "ans1" },
+                    { text: "Нет. Если теряешь себя — это уже не любовь.", next: "ans2" },
+                    { text: "А если я просто не хочу страдать красиво?", next: "ans7" }
+                ]
+            },
+            ans1: {
+                text: "Вы говорите красиво.\n\nТак говорят все, пока любовь ещё не назвала цену.\n\nНо хорошо. Значит, вы из тех, кто готов идти в огонь.",
+                options: [
+                    { text: "А ты сама знала, какую цену заплатишь?", next: "ans3" },
+                    { text: "Знаешь, что ты выдуманный персонаж?", next: "ans4" }
+                ]
+            },
+            ans2: {
+                text: "Значит, вы умеете держаться за себя.\n\nЭто редкий дар.\n\nТолько будьте осторожны: иногда люди называют границами то, что на самом деле является страхом.",
+                options: [
+                    { text: "А ты сама знала, какую цену заплатишь?", next: "ans3" },
+                    { text: "Знаешь, что ты выдуманный персонаж?", next: "ans4" }
+                ]
+            },
+            ans3: {
+                text: "А я вот не уверена.\n\nЯ думала, что иду к любви.\n\nВы задавали этот вопрос коту?",
+                options: [
+                    { text: "Знаешь, что ты выдуманный персонаж?", next: "ans4" }
+                ]
+            },
+            ans4: {
+                text: "А вы уверены, что вы настоящий?",
+                options: [
+                    { text: "Нет", next: "ans5" },
+                    { text: "Да", next: "ans6" }
+                ]
+            },
+            ans5: {
+                text: "Бегемот поможет с ответом.\n\nМожете найти его около дома, где жил часовщик Ганс Кульмс.",
+                options: [
+                    { text: "Можешь подсказать более точную локацию?", next: "clue" }
+                ]
+            },
+            ans6: {
+                text: "Спорить о страдании можно бесконечно.\n\nБегемот наверняка сказал бы, что люди либо героизируют свои чувства, либо героизируют своё благоразумие.\n\nМожете спросить его сами — найдите его около дома, где жил часовщик Ганс Кульмс.",
+                options: [
+                    { text: "Можешь подсказать более точную локацию?", next: "clue" }
+                ]
+            },
+            ans7: {
+                text: "Тогда вы либо очень умны, либо очень устали.\n\nИ то и другое — не приговор.\n\nИдите дальше. Найдите Бегемота около дома, где жил часовщик Ганс Кульмс.",
+                options: [
+                    { text: "Можешь подсказать более точную локацию?", next: "clue" }
+                ]
+            },
+            clue: {
+                text: "Вот эта табличка. Найдёте её — найдёте и Бегемота.",
+                imageUrl: "./hans_kulms_plate.jpg",
+                options: [
+                    { text: "Спасибо, иду искать", action: "complete" }
+                ]
+            }
+        }
     },
     marker2: {
         id: 2,
-        character: "Всеволод Мейерхольд",
-        dialogue: "Вы нашли вторую точку! Форма — это всё, не так ли? Как вам наша архитектура?",
+        character: "Бегемот",
         audioUrl: "/mock-audio-2.mp3",
-        options: [
-            { text: "Впечатляет", nextAction: "show_promo" },
-            { text: "Иду дальше", nextAction: "show_promo" }
-        ],
-        requiredPrevious: 1
+        requiredPrevious: 1,
+        startNode: "start",
+        tree: {
+            start: {
+                text: "Граждане! Вы нашли вторую точку. (TODO: диалог Бегемота ещё не написан)",
+                options: [
+                    { text: "Завершить квест", action: "show_promo" }
+                ]
+            }
+        }
     }
 };
 
@@ -277,55 +341,91 @@ class QuestManager {
     }
 
     startScene(scene) {
-        // Mocking 3D Model initialization
-        console.log(`[AR MOCK] Render 3D Model: ${scene.character} (.glb file)`);
+        console.log(`[SCENE] ${scene.character} (marker ${scene.id})`);
         console.log(`[AR MOCK] Play Animation: idle`);
         console.log(`[AUDIO MOCK] Play: ${scene.audioUrl}`);
-        
+
+        this.currentScene = scene;
         this.ui.overlay.style.display = 'flex';
         this.ui.trackingHint.style.display = 'flex';
         this.ui.characterName.textContent = scene.character;
-        
-        // Setup dialogue text
-        this.ui.dialogueText.textContent = scene.dialogue;
-        
-        this.renderOptions(scene.options, scene);
+
+        this.showNode(scene.startNode || 'start');
     }
 
-    renderOptions(options, scene) {
+    showNode(nodeId) {
+        const tree = this.currentScene?.tree;
+        if (!tree) {
+            console.warn('[dialogue] нет дерева в текущей сцене');
+            return;
+        }
+        const node = tree[nodeId];
+        if (!node) {
+            console.warn('[dialogue] неизвестная нода:', nodeId);
+            return;
+        }
+
+        this.currentNode = nodeId;
+        this.ui.dialogueText.textContent = node.text;
+        this.updateDialogueImage(node.imageUrl);
+        this.renderOptions(node.options || []);
+    }
+
+    updateDialogueImage(url) {
+        let img = document.getElementById('dialogue-image');
+        if (url) {
+            if (!img) {
+                img = document.createElement('img');
+                img.id = 'dialogue-image';
+                img.className = 'dialogue-image';
+                img.alt = 'Подсказка';
+                this.ui.dialogueBox.appendChild(img);
+            }
+            img.src = url;
+            img.style.display = 'block';
+        } else if (img) {
+            img.style.display = 'none';
+        }
+    }
+
+    renderOptions(options) {
         this.ui.optionsContainer.innerHTML = '';
-        
         options.forEach(opt => {
             const btn = document.createElement('button');
             btn.className = 'btn-primary';
             btn.textContent = opt.text;
-            btn.onclick = () => this.handleOptionClick(opt, scene);
+            btn.onclick = () => this.handleOption(opt);
             this.ui.optionsContainer.appendChild(btn);
         });
     }
 
-    handleOptionClick(option, scene) {
-        console.log(`[USER ACTION] Chose: ${option.text} -> Triggering: ${option.nextAction}`);
-        
-        // Mock changing 3D animation
+    handleOption(option) {
+        console.log(`[USER] "${option.text}" → ${option.next || option.action}`);
         console.log(`[AR MOCK] Play Animation: talk`);
 
-        // Mark current scene as completed
-        if (!this.progress.completed.includes(scene.id)) {
-            this.progress.completed.push(scene.id);
-            this.saveProgress();
-        }
-
-        // Handle routing based on option action
-        if (option.nextAction === 'show_promo') {
+        if (option.action === 'show_promo') {
+            this.markSceneCompleted();
             this.showFinalScreen();
-        } else if (option.nextAction === 'explain_rules') {
-            this.ui.dialogueText.textContent = "Правила просты: ищите маркеры, слушайте нас, делайте выбор.";
-            this.renderOptions([{ text: "Понятно!", nextAction: "talk_next" }], scene);
-        } else {
-            // Advance the interaction or close
+            return;
+        }
+        if (option.action === 'complete') {
+            this.markSceneCompleted();
             this.hideUI();
-            this.showToast("Отлично! Ищите следующую точку.");
+            this.showToast('Отлично! Ищите следующую точку.');
+            return;
+        }
+        if (option.next) {
+            this.showNode(option.next);
+            return;
+        }
+        console.warn('[dialogue] у опции нет ни next, ни action:', option);
+    }
+
+    markSceneCompleted() {
+        const id = this.currentScene?.id;
+        if (id && !this.progress.completed.includes(id)) {
+            this.progress.completed.push(id);
+            this.saveProgress();
         }
     }
 
