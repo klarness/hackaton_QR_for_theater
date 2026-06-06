@@ -37,11 +37,10 @@ class QuestManager {
             dialogueText: document.getElementById('dialogue-text'),
             optionsContainer: document.getElementById('options-container'),
             devControls: document.getElementById('dev-controls'),
-            cameraContainer: document.getElementById('camera-container'),
-            cameraFeed: document.getElementById('camera-feed'),
             introOverlay: document.getElementById('intro-overlay'),
             startBtn: document.getElementById('start-btn'),
-            trackingHint: document.getElementById('tracking-hint')
+            trackingHint: document.getElementById('tracking-hint'),
+            arScene: document.getElementById('ar-scene')
         };
         
         this.init();
@@ -56,30 +55,55 @@ class QuestManager {
 
     async startApp() {
         try {
-            // Request camera
-            const stream = await navigator.mediaDevices.getUserMedia({ 
-                video: { facingMode: "environment" } 
-            });
-            this.ui.cameraFeed.srcObject = stream;
-            
-            // Hide intro, show dev controls
+            // Hide intro
             this.ui.introOverlay.style.opacity = '0';
             setTimeout(() => {
                 this.ui.introOverlay.style.display = 'none';
             }, 500);
 
-            this.renderDevControls();
-            
-            // Show initial hint
-            if (this.progress.completed.length === 0) {
-                this.showToast("Найдите первый маркер во дворе и отсканируйте его.");
+            // Robust MindAR start
+            const startAR = () => {
+                try {
+                    this.ui.arScene.systems["mindar-image-system"].start();
+                    this.bindAREvents();
+                    this.renderDevControls();
+                    
+                    if (this.progress.completed.length === 0) {
+                        this.showToast("Наведите камеру на банковскую карту (маркер).");
+                    } else {
+                        this.showToast("Ищите следующий маркер!");
+                    }
+                } catch (e) {
+                    alert("Ошибка запуска AR: " + e.message);
+                }
+            };
+
+            if (this.ui.arScene.hasLoaded) {
+                startAR();
             } else {
-                this.showToast("Ищите следующий маркер!");
+                this.ui.arScene.addEventListener('loaded', startAR);
             }
+
         } catch (err) {
-            console.error("Camera access denied:", err);
-            this.showToast("Ошибка: Доступ к камере запрещен или устройство не поддерживается.", true);
+            alert("General Error: " + err.message);
         }
+    }
+
+    bindAREvents() {
+        const targetEl = document.querySelector('#target');
+        
+        targetEl.addEventListener("targetFound", event => {
+            console.log("Target found!");
+            // Automatically trigger marker 1 for testing purposes
+            if (!this.progress.currentMarker) {
+                this.scanMarker('marker1');
+            }
+        });
+
+        targetEl.addEventListener("targetLost", event => {
+            console.log("Target lost!");
+            this.showToast("Цель потеряна, наведите камеру обратно", true);
+        });
     }
 
     loadProgress() {
@@ -245,3 +269,8 @@ class QuestManager {
 document.addEventListener('DOMContentLoaded', () => {
     window.questApp = new QuestManager();
 });
+
+window.onerror = function(msg, url, lineNo, columnNo, error) {
+    alert("JS Error: " + msg + " line: " + lineNo);
+    return false;
+};
