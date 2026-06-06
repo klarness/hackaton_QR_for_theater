@@ -99,7 +99,8 @@ class QuestManager {
             introOverlay: document.getElementById('intro-overlay'),
             startBtn: document.getElementById('start-btn'),
             trackingHint: document.getElementById('tracking-hint'),
-            arScene: document.getElementById('ar-scene')
+            arScene: document.getElementById('ar-scene'),
+            characterModel: document.getElementById('character-model')
         };
         
         this.init();
@@ -107,9 +108,24 @@ class QuestManager {
 
     init() {
         console.log("Quest Manager Initialized. Progress:", this.progress);
+
+        this.bindModelEvents();
         
         // Setup Start button
         this.ui.startBtn.onclick = () => this.startApp();
+    }
+
+    bindModelEvents() {
+        if (!this.ui.characterModel) return;
+
+        this.ui.characterModel.addEventListener('model-loaded', event => {
+            console.log('[model] loaded:', event.detail?.format, this.ui.characterModel.getObject3D('mesh'));
+        });
+
+        this.ui.characterModel.addEventListener('model-error', event => {
+            console.error('[model] error:', event.detail);
+            this.showToast('Ошибка загрузки 3D-модели. Смотрите консоль браузера.', true);
+        });
     }
 
     async startApp() {
