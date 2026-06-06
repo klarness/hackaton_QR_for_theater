@@ -70,6 +70,11 @@ const questData = {
         audioUrl: "/mock-audio-1.mp3",
         requiredPrevious: null,
         startNode: "start",
+        model: {
+            url: "./MargaritaUp2.glb",
+            scale: "1 1 1",
+            rotation: "90 0 0"
+        },
         tree: {
             start: {
                 text: "Не смотрите так.\nЯ не всегда была такой.\n\nСкажите...\n\nЕсли любовь требует от вас отказаться от всего, кем вы были, — это всё ещё любовь?",
@@ -135,15 +140,66 @@ const questData = {
     },
     marker2: {
         id: 2,
-        character: "Бегемот",
+        character: "Кот Бегемот",
         audioUrl: "/mock-audio-2.mp3",
         requiredPrevious: 1,
         startNode: "start",
+        // Куб как заглушка пока нет модели кота
+        model: {
+            url: "./cube.glb",
+            scale: "0.3 0.3 0.3",
+            rotation: "0 0 0"
+        },
         tree: {
             start: {
-                text: "Граждане! Вы нашли вторую точку. (TODO: диалог Бегемота ещё не написан)",
+                text: "Ну наконец-то.\n\nЯ уже начал думать, что вы тоже решили пожертвовать собой ради любви и по дороге забыли, куда шли.\n\nХорошее место, кстати. Дом часовщика.",
                 options: [
-                    { text: "Завершить квест", action: "show_promo" }
+                    { text: "Ради кого Маргарита жертвует собой?", next: "sacrifice" },
+                    { text: "А кто такой этот часовщик?", next: "watchmaker" }
+                ]
+            },
+            sacrifice: {
+                text: "Люди вообще любят думать, что жертвуют собой ради кого-то. Так звучит благороднее.\n\nА потом оказывается, что они жертвуют ради той версии себя, которая наконец-то способна на большой поступок.\n\nТы готов на такие поступки?",
+                options: [
+                    { text: "Да", next: "yes_lead" },
+                    { text: "Нет", next: "no_reward" }
+                ]
+            },
+            watchmaker: {
+                text: "Человек, который жил здесь и считал время.\n\nЗвучит просто, да? Часовщики вообще делают вид, что время можно починить. Подкрутить.\n\nУ вас ещё много времени?",
+                options: [
+                    { text: "Да", next: "yes_lead" },
+                    { text: "Нет", next: "no_reward" }
+                ]
+            },
+            yes_lead: {
+                text: "Так обычно говорят люди, которые ещё не поняли, что согласились не на вопрос, а на последствия.\n\nЕсть одно подозрительное место.\nТуда люди входят бодро, с видом знатоков, тоже не думая о последствиях.",
+                options: [
+                    { text: "Хочу рискнуть. Что это за место?", next: "yes_reward" }
+                ]
+            },
+            yes_reward: {
+                text: "Я готов вознаградить тебя за смелость.\n\nОставь свою почту — отправлю туда локацию и ещё что-то интересное.",
+                input: {
+                    type: "email",
+                    placeholder: "your@email.ru",
+                    buttonText: "Получить подарок от Кота",
+                    next: "end"
+                }
+            },
+            no_reward: {
+                text: "Вот и прекрасно. Честное «нет» иногда стоит дороже красивого «да».\n\nМаргарита выбрала долгий путь. А вам повезло больше.\n\nЯ готов вознаградить тебя — оставь свою почту, отправлю туда что-то интересное.",
+                input: {
+                    type: "email",
+                    placeholder: "your@email.ru",
+                    buttonText: "Получить подарок от Кота",
+                    next: "end"
+                }
+            },
+            end: {
+                text: "Готово.\n\nПодарок ушёл к вам на почту.\nЕсли не найдёте его — проверьте «Спам».\n\nЛюди часто прячут туда всё самое интересное.\n\nДо встречи в театре.",
+                options: [
+                    { text: "Завершить", action: "complete" }
                 ]
             }
         }
@@ -346,11 +402,21 @@ class QuestManager {
         console.log(`[AUDIO MOCK] Play: ${scene.audioUrl}`);
 
         this.currentScene = scene;
+        this.applySceneModel(scene.model);
         this.ui.overlay.style.display = 'flex';
         this.ui.trackingHint.style.display = 'flex';
         this.ui.characterName.textContent = scene.character;
 
         this.showNode(scene.startNode || 'start');
+    }
+
+    // Подмена 3D-модели под текущую сцену (для marker2 пока куб-заглушка)
+    applySceneModel(model) {
+        if (!model || !this.ui.characterModel) return;
+        if (model.url) this.ui.characterModel.setAttribute('src', model.url);
+        if (model.scale) this.ui.characterModel.setAttribute('scale', model.scale);
+        if (model.rotation) this.ui.characterModel.setAttribute('rotation', model.rotation);
+        console.log('[model] swapped to', model.url, 'scale:', model.scale);
     }
 
     showNode(nodeId) {
@@ -366,9 +432,108 @@ class QuestManager {
         }
 
         this.currentNode = nodeId;
-        this.ui.dialogueText.textContent = node.text;
         this.updateDialogueImage(node.imageUrl);
-        this.renderOptions(node.options || []);
+
+        // Опции прячем пока реплика печатается — UX задача от юзера
+        this.ui.optionsContainer.innerHTML = '';
+
+        this.typewriteText(node.text, () => {
+            if (node.input) {
+                this.renderInput(node.input);
+            } else {
+                this.renderOptions(node.options || []);
+            }
+        });
+    }
+
+    renderInput(input) {
+        this.ui.optionsContainer.innerHTML = '';
+
+        const inputEl = document.createElement('input');
+        inputEl.type = input.type || 'text';
+        inputEl.className = 'dialogue-input';
+        inputEl.placeholder = input.placeholder || '';
+        if (input.type === 'email') {
+            inputEl.autocomplete = 'email';
+            inputEl.inputMode = 'email';
+        }
+
+        const btn = document.createElement('button');
+        btn.className = 'btn-primary';
+        btn.textContent = input.buttonText || 'Отправить';
+
+        const submit = () => {
+            const value = inputEl.value.trim();
+            if (!value) {
+                inputEl.focus();
+                this.showToast('Введите почту, чтобы Бегемот отправил подарок', true);
+                return;
+            }
+            // Простейшая валидация email — наличие @ и точки после
+            if (input.type === 'email' && !/^.+@.+\..+$/.test(value)) {
+                inputEl.focus();
+                this.showToast('Похоже, в почте опечатка', true);
+                return;
+            }
+
+            // Сохраняем — для прода тут будет POST на бэкенд
+            this.progress.email = value;
+            this.saveProgress();
+            console.log('[email] сохранена:', value);
+
+            if (input.next) this.showNode(input.next);
+        };
+
+        btn.onclick = submit;
+        inputEl.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') submit();
+        });
+
+        this.ui.optionsContainer.appendChild(inputEl);
+        this.ui.optionsContainer.appendChild(btn);
+        // На мобильных не фокусим автоматически — клавиатура выскочит и закроет коробку
+    }
+
+    // Печатная машинка: слова появляются последовательно с паузами на знаках.
+    // Тап по диалог-коробке скипает анимацию до конца.
+    typewriteText(fullText, onDone) {
+        // Прервать предыдущую анимацию если была
+        if (this._typewriterTimeout) {
+            clearTimeout(this._typewriterTimeout);
+            this._typewriterTimeout = null;
+        }
+
+        const tokens = fullText.split(/(\s+)/); // сохраняем пробелы и \n
+        const PUNCT_PAUSE = { '.': 220, '!': 220, '?': 220, '…': 220, ',': 120, ':': 120, ';': 120 };
+        const WORD_DELAY = 80;
+
+        this.ui.dialogueText.textContent = '';
+        let i = 0;
+
+        const finish = () => {
+            this.ui.dialogueText.textContent = fullText;
+            this._typewriterTimeout = null;
+            this.ui.dialogueBox.onclick = null;
+            if (onDone) onDone();
+        };
+
+        // Тап-скип
+        this.ui.dialogueBox.onclick = () => {
+            if (this._typewriterTimeout) {
+                clearTimeout(this._typewriterTimeout);
+                finish();
+            }
+        };
+
+        const tick = () => {
+            if (i >= tokens.length) { finish(); return; }
+            const token = tokens[i++];
+            this.ui.dialogueText.textContent += token;
+            const lastChar = token.trim().slice(-1);
+            const delay = PUNCT_PAUSE[lastChar] ?? WORD_DELAY;
+            this._typewriterTimeout = setTimeout(tick, delay);
+        };
+        tick();
     }
 
     updateDialogueImage(url) {

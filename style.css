@@ -113,11 +113,11 @@ body {
     bottom: 0;
     left: 0;
     width: 100%;
-    padding: 30px 20px;
+    padding: 16px 14px 20px;
     z-index: 20;
     display: none; /* Hidden by default until marker is scanned */
     flex-direction: column;
-    gap: 15px;
+    gap: 10px;
     animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
@@ -131,11 +131,12 @@ body {
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
     border: 1px solid var(--glass-border);
-    border-radius: 20px;
-    padding: 24px;
+    border-radius: 16px;
+    padding: 14px 16px;
     box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
     position: relative;
     overflow: hidden;
+    cursor: pointer; /* индикация что можно тапнуть-скипнуть */
 }
 
 .dialogue-box::before {
@@ -150,28 +151,29 @@ body {
 
 .character-name {
     font-weight: 600;
-    font-size: 1.2rem;
+    font-size: 0.95rem;
     color: var(--secondary);
-    margin-bottom: 8px;
+    margin-bottom: 6px;
     letter-spacing: 0.5px;
     text-transform: uppercase;
 }
 
 .dialogue-text {
-    font-size: 1.05rem;
-    line-height: 1.5;
+    font-size: 0.9rem;
+    line-height: 1.4;
     font-weight: 300;
     white-space: pre-line; /* сохранять переносы строк из questData */
+    min-height: 2.5em; /* чтобы коробка не «прыгала» пока печатается */
 }
 
 /* Картинка-подсказка внутри диалога (например, фото мемориальной таблички) */
 .dialogue-image {
     display: block;
     width: 100%;
-    max-height: 220px;
+    max-height: 160px;
     object-fit: cover;
-    border-radius: 10px;
-    margin-top: 14px;
+    border-radius: 8px;
+    margin-top: 10px;
     border: 1px solid var(--glass-border);
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
 }
@@ -179,7 +181,29 @@ body {
 .options-container {
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 8px;
+}
+
+/* Поле ввода для финала Бегемота — почта для «подарка» */
+.dialogue-input {
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid var(--glass-border);
+    border-radius: 12px;
+    padding: 11px 14px;
+    color: var(--text-light);
+    font-size: 0.95rem;
+    font-family: inherit;
+    outline: none;
+    transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.dialogue-input:focus {
+    border-color: var(--secondary);
+    background: rgba(255, 255, 255, 0.12);
+}
+
+.dialogue-input::placeholder {
+    color: rgba(255, 255, 255, 0.4);
 }
 
 button {
@@ -191,9 +215,9 @@ button {
     background: linear-gradient(135deg, var(--primary), var(--secondary));
     color: var(--dark-bg);
     border: none;
-    padding: 16px 20px;
-    border-radius: 14px;
-    font-size: 1.05rem;
+    padding: 11px 14px;
+    border-radius: 12px;
+    font-size: 0.9rem;
     font-weight: 600;
     cursor: pointer;
     box-shadow: 0 4px 15px rgba(146, 186, 110, 0.2);
