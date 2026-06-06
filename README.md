@@ -69,6 +69,7 @@ ssh -R 80:localhost:3000 nokey@localhost.run -o StrictHostKeyChecking=no
 
 ## 🔗 Как работают QR-коды
 
+<<<<<<< HEAD
 Каждый QR ведёт на ту же страницу, но с параметром `?m=`:
 
 | QR на афише        | URL                                       | Сцена         |
@@ -190,3 +191,6 @@ hackaton_QR_for_theater/
 ├── card.mind         # ⚠️ legacy от MindAR, можно удалить
 └── README.md
 ```
+=======
+В будущем в проект планируется интеграция `A-Frame` и `MindAR` для реального рендеринга 3D-моделей (.glb) поверх отсканированных маркеров.
+>>>>>>> rodion

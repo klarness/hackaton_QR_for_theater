@@ -1,14 +1,25 @@
 <!DOCTYPE html>
 <html lang="ru">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>СТИ: AR Квест</title>
-    <meta name="description" content="Геймифицированный WebAR-квест во внутреннем дворике Студии театрального искусства.">
-    <!-- Google model-viewer: inline 3D + native AR (ARKit / ARCore) -->
-    <script type="module" src="https://unpkg.com/@google/model-viewer@3.5.0/dist/model-viewer.min.js"></script>
-    <link rel="stylesheet" href="style.css">
+    <<<<<<< HEAD <meta name="description"
+        content="Геймифицированный WebAR-квест во внутреннем дворике Студии театрального искусства.">
+        <!-- Google model-viewer: inline 3D + native AR (ARKit / ARCore) -->
+        <script type="module" src="https://unpkg.com/@google/model-viewer@3.5.0/dist/model-viewer.min.js"></script>
+        =======
+        <meta name="description"
+            content="Геймифицированный WebAR-квест во внутреннем дворике Студии театрального искусства.">
+        <!-- AR Libraries -->
+        <script src="https://aframe.io/releases/1.3.0/aframe.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.2/dist/mindar-image-aframe.prod.js"></script>
+        <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-extras@7.0.0/dist/aframe-extras.min.js"></script>
+        >>>>>>> rodion
+        <link rel="stylesheet" href="style.css">
 </head>
+
 <body>
 
     <!-- Камера телефона как фон страницы (запускается по тапу «Начать») -->
@@ -19,41 +30,40 @@
         <!-- Buttons injected by JS -->
     </div>
 
-    <!-- 3D Scene (model-viewer) — оптимизирован под диалог с персонажем -->
-    <model-viewer
-        id="ar-model"
-        src="https://modelviewer.dev/shared-assets/models/RobotExpressive.glb"
-        ios-src="https://modelviewer.dev/shared-assets/models/RobotExpressive.usdz"
-        alt="3D-персонаж"
-        ar
-        ar-modes="webxr scene-viewer quick-look"
-        ar-scale="auto"
-        ar-placement="floor"
-        camera-controls
-        disable-pan
-        touch-action="pan-y"
-        autoplay
-        shadow-intensity="1.4"
-        shadow-softness="0.8"
-        exposure="1.1"
-        environment-image="neutral"
-        camera-target="0m 1.8m 0m"
-        camera-orbit="0deg 78deg 8m"
-        min-camera-orbit="-45deg 60deg 6m"
-        max-camera-orbit="45deg 95deg 12m"
-        field-of-view="25deg"
-        interaction-prompt="none">
-        <button slot="ar-button" class="ar-button" id="ar-button">
-            👁 В AR
-        </button>
-    </model-viewer>
+    <!-- Real AR Scene (MindAR + A-Frame) -->
+    <a-scene id="ar-scene"
+        mindar-image="imageTargetSrc: ./targets.mind; autoStart: false; filterMinCF: 0.001; filterBeta: 100000;"
+        color-space="sRGB" renderer="colorManagement: true, physicallyCorrectLights" vr-mode-ui="enabled: false"
+        device-orientation-permission-ui="enabled: false">
+        <a-assets>
+            <!-- marker1: Маргарита -->
+            <a-asset-item id="margaritaModel" src="./MargaritaUp2.glb"></a-asset-item>
+            <!-- marker2: Кот Бегемот (пока куб-заглушка) -->
+            <a-asset-item id="behemothModel" src="./cube.glb"></a-asset-item>
+        </a-assets>
 
-    <!-- Button to trigger dialogue after AR experience -->
-    <button id="start-dialog-btn" class="btn-primary" style="position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); z-index: 10; display: none; box-shadow: 0 4px 20px rgba(0,0,0,0.5);">
-        💬 Начать диалог с персонажем
-    </button>
+        <a-camera position="0 0 0" look-controls="enabled: false" cursor="fuse: false; rayOrigin: mouse;"
+            raycaster="far: 10000; objects: .clickable"></a-camera>
 
-    <!-- Intro overlay -->
+        <!-- Marker 0 (в .mind файле): Маргарита -->
+        <a-entity id="target-margarita" mindar-image-target="targetIndex: 0">
+            <a-gltf-model src="#margaritaModel" position="0 0 0" scale="1 1 1" rotation="90 0 0"
+                animation-mixer="clip: *; loop: repeat"></a-gltf-model>
+        </a-entity>
+
+        <!-- Marker 1 (в .mind файле): Кот Бегемот (пока куб-заглушка) -->
+        <a-entity id="target-behemoth" mindar-image-target="targetIndex: 1">
+            <a-gltf-model src="#behemothModel" position="0 0 0" scale="0.3 0.3 0.3" rotation="0 0 0"
+                animation-mixer="clip: *; loop: repeat"></a-gltf-model>
+        </a-entity>
+    </a-scene>
+
+    <!-- Tracking hint for the user -->
+    <div class="tracking-hint" id="tracking-hint">
+        <span class="icon">🎯</span> Держите камеру на маркере
+    </div>
+
+    <!-- Intro overlay to request camera permissions -->
     <div class="intro-overlay" id="intro-overlay">
         <h2>СТИ: AR Квест</h2>
         <p>Театральные классики оживут в дополненной реальности у вас в кармане.</p>
@@ -73,4 +83,5 @@
 
     <script src="app.js"></script>
 </body>
+
 </html>
