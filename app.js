@@ -79,7 +79,7 @@ const questData = {
         requiredPrevious: null,
         startNode: "start",
         model: {
-            url: "./MargaritaUp2.glb",
+            url: "./space.glb",
             scale: "1 1 1",
             rotation: "90 0 0"
         },
