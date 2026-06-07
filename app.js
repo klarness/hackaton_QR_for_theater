@@ -207,7 +207,7 @@ const questData = {
             end: {
                 text: "Готово.\n\nПодарок ушёл к вам на почту.\nЕсли не найдёте его — проверьте «Спам».\n\nЛюди часто прячут туда всё самое интересное.\n\nДо встречи в театре.",
                 options: [
-                    { text: "Завершить", action: "complete" }
+                    { text: "Завершить", action: "show_promo" }
                 ]
             }
         }
@@ -599,19 +599,25 @@ class QuestManager {
     }
 
     showFinalScreen() {
-        this.ui.characterName.textContent = "Квест пройден!";
-        this.ui.dialogueText.textContent = "Поздравляем! Вы прошли квест. Ваш промокод на скидку: ZUMER_STI_2024.";
+        this.ui.characterName.textContent = "Студия театрального искусства";
         this.ui.optionsContainer.innerHTML = '';
+        this.updateDialogueImage(null);
 
-        const buyBtn = document.createElement('button');
-        buyBtn.className = 'btn-buy';
-        buyBtn.textContent = 'Купить билет со скидкой';
-        buyBtn.onclick = () => {
-            console.log("[REDIRECT] Redirecting to https://sti.ru");
-            window.open('https://sti.ru', '_blank');
-        };
+        const finalText =
+            "Маргарита и Бегемот провели вас от начала и до конца.\n\n" +
+            "Теперь увидьте их вживую — на сцене Студии театрального искусства.\n\n" +
+            "Покупайте билеты и приходите. Промокод из письма уже работает.";
 
-        this.ui.optionsContainer.appendChild(buyBtn);
+        this.typewriteText(finalText, () => {
+            const buyBtn = document.createElement('button');
+            buyBtn.className = 'btn-buy';
+            buyBtn.textContent = 'Купить билет в СТИ';
+            buyBtn.onclick = () => {
+                console.log('[REDIRECT] → https://sti.ru');
+                window.open('https://sti.ru', '_blank');
+            };
+            this.ui.optionsContainer.appendChild(buyBtn);
+        });
     }
 
     hideUI() {
