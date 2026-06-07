@@ -23,7 +23,7 @@
 
     <!-- Real AR Scene (MindAR + A-Frame) -->
     <a-scene id="ar-scene"
-        mindar-image="imageTargetSrc: ./targets.mind; autoStart: false; filterMinCF: 0.001; filterBeta: 100000;"
+        mindar-image="imageTargetSrc: ./targets.mind; autoStart: false; filterMinCF: 0.1; filterBeta: 1000;"
         color-space="sRGB" renderer="colorManagement: true, physicallyCorrectLights" vr-mode-ui="enabled: false"
         device-orientation-permission-ui="enabled: false">
         <a-assets>
@@ -38,13 +38,13 @@
 
         <!-- Marker 0 (в .mind файле): Маргарита -->
         <a-entity id="target-margarita" mindar-image-target="targetIndex: 0">
-            <a-gltf-model src="#margaritaModel" position="0 0 0" scale="1 1 1" rotation="0 0 0"
+            <a-gltf-model src="#margaritaModel" position="0 0 0" scale="1.5 1.5 1.5" rotation="0 0 0"
                 animation-mixer="clip: *; loop: repeat"></a-gltf-model>
         </a-entity>
 
         <!-- Marker 1 (в .mind файле): Кот Бегемот (пока куб-заглушка) -->
         <a-entity id="target-behemoth" mindar-image-target="targetIndex: 1">
-            <a-gltf-model src="#behemothModel" position="0 0 0" scale="0.02 0.02 0.02" rotation="0 0 0"
+            <a-gltf-model src="#behemothModel" position="0 0 0" scale="3 3 3" rotation="90 0 0"
                 animation-mixer="clip: *; loop: repeat"></a-gltf-model>
         </a-entity>
     </a-scene>
