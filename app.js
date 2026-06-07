@@ -1,5 +1,6 @@
 // Mocking AR interactions and endpoints for the MVP
 const QUEST_STATE_KEY = 'sti_quest_progress';
+const SHOW_DEV_CONTROLS = false;
 
 // Какой сцене соответствует какой targetIndex в .mind файле.
 // В компилере MindAR картинки нумеруются по порядку добавления.
@@ -236,7 +237,8 @@ class QuestManager {
         console.log("Quest Manager Initialized. Progress:", this.progress);
 
         this.bindModelEvents();
-        
+        this.ui.devControls.style.display = SHOW_DEV_CONTROLS ? 'flex' : 'none';
+
         // Setup Start button
         this.ui.startBtn.onclick = () => this.startApp();
     }
@@ -247,10 +249,10 @@ class QuestManager {
             el.addEventListener('model-loaded', event => {
                 console.log('[model] loaded:', el.getAttribute('src'), event.detail?.format);
             });
-            el.addEventListener('model-error', event => {
-                console.error('[model] error:', el.getAttribute('src'), event.detail);
-                this.showToast(`Ошибка загрузки модели ${el.getAttribute('src')}`, true);
-            });
+            // el.addEventListener('model-error', event => {
+            //     console.error('[model] error:', el.getAttribute('src'), event.detail);
+            //     this.showToast(`Ошибка загрузки модели ${el.getAttribute('src')}`, true);
+            // });
         });
     }
 
@@ -600,15 +602,15 @@ class QuestManager {
         this.ui.characterName.textContent = "Квест пройден!";
         this.ui.dialogueText.textContent = "Поздравляем! Вы прошли квест. Ваш промокод на скидку: ZUMER_STI_2024.";
         this.ui.optionsContainer.innerHTML = '';
-        
+
         const buyBtn = document.createElement('button');
         buyBtn.className = 'btn-buy';
         buyBtn.textContent = 'Купить билет со скидкой';
         buyBtn.onclick = () => {
             console.log("[REDIRECT] Redirecting to https://sti.ru");
-            window.open('https://sti.ru', '_blank'); 
+            window.open('https://sti.ru', '_blank');
         };
-        
+
         this.ui.optionsContainer.appendChild(buyBtn);
     }
 
@@ -625,9 +627,9 @@ class QuestManager {
             toast.className = 'toast';
             document.body.appendChild(toast);
         }
-        
+
         toast.textContent = msg;
-        
+
         if (isError) {
             toast.style.background = '#ff6b6b';
             toast.style.color = '#fff';
@@ -635,12 +637,12 @@ class QuestManager {
             toast.style.background = 'rgba(255, 255, 255, 0.95)';
             toast.style.color = 'var(--dark-bg)';
         }
-        
+
         // Reset animation
         toast.classList.remove('show');
         void toast.offsetWidth; // trigger reflow
         toast.classList.add('show');
-        
+
         if (this.toastTimeout) clearTimeout(this.toastTimeout);
         this.toastTimeout = setTimeout(() => {
             toast.classList.remove('show');
@@ -649,6 +651,9 @@ class QuestManager {
 
     // Dev utility to trigger markers without actual AR
     renderDevControls() {
+        this.ui.devControls.innerHTML = '';
+        if (!SHOW_DEV_CONTROLS) return;
+
         Object.keys(questData).forEach(key => {
             const btn = document.createElement('button');
             btn.textContent = `[Dev] Скан ${key}`;
@@ -669,7 +674,7 @@ document.addEventListener('DOMContentLoaded', () => {
     window.questApp = new QuestManager();
 });
 
-window.onerror = function(msg, url, lineNo, columnNo, error) {
+window.onerror = function (msg, url, lineNo, columnNo, error) {
     alert("JS Error: " + msg + " line: " + lineNo);
     return false;
 };
