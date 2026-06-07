@@ -275,7 +275,7 @@ class QuestManager {
                     setTimeout(() => this.tuneActiveCamera(), 1000);
 
                     if (this.progress.completed.length === 0) {
-                        this.showToast("Наведите камеру на банковскую карту (маркер).");
+                        this.showToast("Наведите камеру на маркер.");
                     } else {
                         this.showToast("Ищите следующий маркер!");
                     }
