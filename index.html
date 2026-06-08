@@ -1,14 +1,19 @@
 <!DOCTYPE html>
 <html lang="ru">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>СТИ: AR Квест</title>
-    <meta name="description" content="Геймифицированный WebAR-квест во внутреннем дворике Студии театрального искусства.">
-    <!-- Google model-viewer: inline 3D + native AR (ARKit / ARCore) -->
-    <script type="module" src="https://unpkg.com/@google/model-viewer@3.5.0/dist/model-viewer.min.js"></script>
+    <meta name="description"
+        content="Геймифицированный WebAR-квест во внутреннем дворике Студии театрального искусства.">
+    <!-- AR Libraries -->
+    <script src="https://aframe.io/releases/1.3.0/aframe.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.2/dist/mindar-image-aframe.prod.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-extras@7.0.0/dist/aframe-extras.min.js"></script>
     <link rel="stylesheet" href="style.css">
 </head>
+
 <body>
 
     <!-- Dev controls to mock marker scanning (will be removed in prod) -->
@@ -16,37 +21,47 @@
         <!-- Buttons injected by JS -->
     </div>
 
-    <!-- 3D / AR Scene (model-viewer) -->
-    <model-viewer
-        id="ar-model"
-        src="./cube.glb"
-        alt="AR-персонаж"
-        ar
-        ar-modes="webxr scene-viewer quick-look"
-        ar-scale="auto"
-        ar-placement="floor"
-        camera-controls
-        touch-action="pan-y"
-        autoplay
-        shadow-intensity="1"
-        exposure="1"
-        environment-image="neutral"
-        camera-orbit="0deg 80deg 2.5m"
-        field-of-view="35deg"
-        interaction-prompt="none">
-        <button slot="ar-button" class="ar-button" id="ar-button">
-            👁 Посмотреть в моём пространстве
-        </button>
-    </model-viewer>
+    <!-- Real AR Scene (MindAR + A-Frame) -->
+    <a-scene id="ar-scene"
+        mindar-image="imageTargetSrc: ./targets.mind; autoStart: false; filterMinCF: 0.1; filterBeta: 1000;"
+        color-space="sRGB" renderer="colorManagement: true, physicallyCorrectLights" vr-mode-ui="enabled: false"
+        device-orientation-permission-ui="enabled: false">
+        <a-assets>
+            <!-- marker1: Маргарита -->
+            <a-asset-item id="margaritaModel" src="./space.glb"></a-asset-item>
+            <!-- marker2: Кот Бегемот (пока куб-заглушка) -->
+            <a-asset-item id="behemothModel" src="./cat.glb"></a-asset-item>
+        </a-assets>
 
-    <!-- Intro overlay -->
-    <div class="intro-overlay" id="intro-overlay">
-        <h2>СТИ: AR Квест</h2>
-        <p>Театральные классики оживут в дополненной реальности у вас в кармане.</p>
-        <button id="start-btn" class="btn-primary">Начать</button>
+        <a-camera position="0 0 0" look-controls="enabled: false" cursor="fuse: false; rayOrigin: mouse;"
+            raycaster="far: 10000; objects: .clickable"></a-camera>
+
+        <!-- Marker 0 (в .mind файле): Маргарита -->
+        <a-entity id="target-margarita" mindar-image-target="targetIndex: 0">
+            <a-gltf-model src="#margaritaModel" position="0 0 0" scale="1.8 1.8 1.8" rotation="0 0 0"
+                animation-mixer="clip: *; loop: repeat"></a-gltf-model>
+        </a-entity>
+
+        <!-- Marker 1 (в .mind файле): Кот Бегемот (пока куб-заглушка) -->
+        <a-entity id="target-behemoth" mindar-image-target="targetIndex: 1">
+            <a-gltf-model src="#behemothModel" position="0 0 0" scale="3 3 3" rotation="90 0 0"
+                animation-mixer="clip: *; loop: repeat"></a-gltf-model>
+        </a-entity>
+    </a-scene>
+
+    <!-- Tracking hint for the user -->
+    <div class="tracking-hint" id="tracking-hint">
+        <span class="icon">🎯</span> Держите камеру на маркере
     </div>
 
-    <!-- UI Overlay that sits on top of the 3D scene -->
+    <!-- Intro overlay to request camera permissions -->
+    <div class="intro-overlay" id="intro-overlay">
+        <h2>СТИ: AR Квест</h2>
+        <p>Для прохождения квеста необходим доступ к камере вашего устройства.</p>
+        <button id="start-btn" class="btn-primary">Разрешить доступ и начать</button>
+    </div>
+
+    <!-- UI Overlay that sits on top of AR -->
     <div class="ui-overlay" id="ui-overlay">
         <div class="dialogue-box" id="dialogue-box">
             <div class="character-name" id="character-name">Персонаж</div>
@@ -59,4 +74,5 @@
 
     <script src="app.js"></script>
 </body>
+
 </html>
